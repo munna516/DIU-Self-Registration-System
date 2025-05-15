@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
@@ -373,9 +373,20 @@ export function TeachersRegisterForm() {
           Already have an account?{" "}
           <Link
             href="/teacher/login"
-            className="font-bold text-green-600 hover:underline"
+            className="font-bold text-green-600 hover:underline text-lg"
           >
-            Login here
+            Login 
+          </Link>
+        </p>
+        <p>
+          <Link
+            href="/"
+            className="hover:underline text-blue-900 font-semibold flex items-center justify-center gap-1 mt-3"
+          >
+            <span>
+              <FaArrowLeft />
+            </span>
+            Back to Home
           </Link>
         </p>
       </CardFooter>
