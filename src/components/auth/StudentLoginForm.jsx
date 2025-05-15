@@ -4,13 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-export function RegisterForm() {
+export function StudentLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -19,11 +19,11 @@ export function RegisterForm() {
     event.preventDefault();
     setIsLoading(true);
 
-    // Add your registration logic here
+    // Add your login logic here
     // For now, we'll just simulate a delay
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/");
+      router.push("/dashboard");
     }, 1000);
   }
 
@@ -31,27 +31,7 @@ export function RegisterForm() {
     <form onSubmit={onSubmit}>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            placeholder="Enter your full name"
-            type="text"
-            required
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            placeholder="Enter your email"
-            type="email"
-            required
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="studentId">Student ID</Label>
+          <Label htmlFor="studentId">Student ID*</Label>
           <Input
             id="studentId"
             placeholder="Enter your student ID"
@@ -61,10 +41,10 @@ export function RegisterForm() {
           />
         </div>
         <div className="space-y-2 relative">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Password*</Label>
           <Input
             id="password"
-            placeholder="Create a password"
+            placeholder="Enter your password"
             type={showPassword ? "text" : "password"}
             required
             disabled={isLoading}
@@ -92,16 +72,16 @@ export function RegisterForm() {
           {isLoading ? (
             <TbFidgetSpinner className="w-4 h-4 animate-spin" />
           ) : (
-            "Create Account"
+            "Login"
           )}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
+          Don't have an account?{" "}
           <Link
-            href="/"
-            className="hover:underline text-blue-900 font-bold"
+            href="/student/registration"
+            className=" hover:underline text-blue-900 font-bold"
           >
-            Login here
+            Register here
           </Link>
         </p>
       </CardFooter>

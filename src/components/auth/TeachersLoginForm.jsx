@@ -10,7 +10,7 @@ import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-export function LoginForm() {
+export function TeachersLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -31,10 +31,10 @@ export function LoginForm() {
     <form onSubmit={onSubmit}>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="studentId">Student ID*</Label>
+          <Label htmlFor="studentId">Teacher ID*</Label>
           <Input
             id="studentId"
-            placeholder="Enter your student ID"
+            placeholder="Enter your teacher ID"
             type="text"
             required
             disabled={isLoading}
@@ -64,7 +64,7 @@ export function LoginForm() {
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
         <Button
-          variant="diu"
+          variant="teacher"
           className="w-full"
           type="submit"
           disabled={isLoading}
@@ -78,8 +78,9 @@ export function LoginForm() {
         <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link
-            href="/registration"
-            className=" hover:underline text-blue-900 font-bold"
+
+            href="/teacher/registration"
+            className=" hover:underline text-green-600 font-bold"
           >
             Register here
           </Link>
