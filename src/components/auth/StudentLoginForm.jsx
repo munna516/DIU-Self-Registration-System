@@ -8,34 +8,51 @@ import { CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
+import toast from "react-hot-toast";
+import { signIn } from "next-auth/react";
 
 export function StudentLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-
-  async function onSubmit(event) {
-    event.preventDefault();
-    setIsLoading(true);
-
-    // Add your login logic here
-    // For now, we'll just simulate a delay
-    setTimeout(() => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const email = formData.get("studentEmail");
+    const password = formData.get("password");
+    try {
+      setIsLoading(true);
+      const res = await signIn("credentials", {
+        email,
+        password,
+        role: "student",
+        redirect: false,
+      });
+      if (res.status === 401) {
+        toast.error("Invalid credentials or email not verified");
+      }
+      if (res.status === 200) {
+        toast.success("Login successful");
+        router.push("/student/dashboard");
+      }
+    } catch (error) {
+      toast.error("Something went wrong");
+    } finally {
       setIsLoading(false);
-      router.push("/dashboard");
-    }, 1000);
-  }
+    }
+  };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={handleSubmit}>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="studentId">Student ID*</Label>
+          <Label htmlFor="studentEmail">Student Email*</Label>
           <Input
-            id="studentId"
-            placeholder="Enter your student ID"
-            type="text"
+            id="studentEmail"
+            name="studentEmail"
+            placeholder="Enter your student email"
+            type="email"
             required
             disabled={isLoading}
           />
@@ -44,6 +61,7 @@ export function StudentLoginForm() {
           <Label htmlFor="password">Password*</Label>
           <Input
             id="password"
+            name="password"
             placeholder="Enter your password"
             type={showPassword ? "text" : "password"}
             required
@@ -79,9 +97,20 @@ export function StudentLoginForm() {
           Don't have an account?{" "}
           <Link
             href="/student/registration"
-            className=" hover:underline text-blue-900 font-bold"
+            className=" hover:underline text-blue-900 font-bold text-lg"
           >
-            Register here
+            Register
+          </Link>
+        </p>
+        <p>
+          <Link
+            href="/"
+            className="hover:underline text-blue-900 font-semibold flex items-center justify-center gap-1 mt-3"
+          >
+            <span>
+              <FaArrowLeft />
+            </span>
+            Back to Home
           </Link>
         </p>
       </CardFooter>
