@@ -64,7 +64,7 @@ export function TeachersLoginForm() {
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
         <Button
-          variant="diu"
+          variant="teacher"
           className="w-full"
           type="submit"
           disabled={isLoading}
@@ -78,8 +78,9 @@ export function TeachersLoginForm() {
         <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link
+
             href="/teacher/registration"
-            className=" hover:underline text-blue-900 font-bold"
+            className=" hover:underline text-green-600 font-bold"
           >
             Register here
           </Link>

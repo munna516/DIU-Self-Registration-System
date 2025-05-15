@@ -9,31 +9,52 @@ import { CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
+import toast from "react-hot-toast";
 
 export function StudentRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  async function onSubmit(event) {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setIsLoading(true);
+    const formData = new FormData(event.target);
+    const name = formData.get("name");
+    const email = formData.get("email");
+    const studentId = formData.get("studentId");
+    const password = formData.get("password");
 
-    // Add your registration logic here
-    // For now, we'll just simulate a delay
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/student/request-email", {
+        method: "POST",
+        body: JSON.stringify({ email, name, studentId, password }),
+      });
+      if (response.status === 400) {
+        toast.error("Student already exists");
+        return;
+      }
+      if (response.ok) {
+        toast.success("An email has been sent to you to verify your account");
+        event.target.reset();
+      } else {
+        toast.error("Failed to send email");
+      }
+    } catch (error) {
+      toast.error("Failed to send email");
+    } finally {
       setIsLoading(false);
-      router.push("/");
-    }, 1000);
-  }
+    }
+  };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={handleSubmit}>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
           <Input
             id="name"
+            name="name"
             placeholder="Enter your full name"
             type="text"
             required
@@ -44,6 +65,7 @@ export function StudentRegisterForm() {
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
+            name="email"
             placeholder="Enter your email"
             type="email"
             required
@@ -54,6 +76,7 @@ export function StudentRegisterForm() {
           <Label htmlFor="studentId">Student ID</Label>
           <Input
             id="studentId"
+            name="studentId"
             placeholder="Enter your student ID"
             type="text"
             required
@@ -64,6 +87,7 @@ export function StudentRegisterForm() {
           <Label htmlFor="password">Password</Label>
           <Input
             id="password"
+            name="password"
             placeholder="Create a password"
             type={showPassword ? "text" : "password"}
             required
