@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import toast from "react-hot-toast";
 
 const department = [
   {
@@ -202,18 +203,49 @@ export function TeachersRegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  async function onSubmit(event) {
-    event.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const name = formData.get("name");
+    const teacherId = formData.get("teacherId");
+    const email = formData.get("email");
+    const phone = formData.get("phone");
+    const designation = formData.get("designation");
+    const department = formData.get("department");
+    const password = formData.get("password");
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/teacher/request-email", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          teacherId,
+          email,
+          phone,
+          designation,
+          department,
+          password,
+        }),
+      });
+      if (response.status === 400) {
+        toast.error("Teacher already exists");
+        return;
+      }
+      if (response.ok) {
+        toast.success("An email has been sent to you to verify your account");
+        e.target.reset();
+      } else {
+        toast.error("Failed to register teacher");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
       setIsLoading(false);
-      router.push("/");
-    }, 1000);
-  }
+    }
+  };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={handleSubmit}>
       <CardContent className="space-y-6">
         {/* First Row: Name and Teacher ID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,6 +253,7 @@ export function TeachersRegisterForm() {
             <Label htmlFor="name">Full Name</Label>
             <Input
               id="name"
+              name="name"
               placeholder="Enter your full name"
               type="text"
               required
@@ -231,6 +264,7 @@ export function TeachersRegisterForm() {
             <Label htmlFor="teacherId">Teacher ID</Label>
             <Input
               id="teacherId"
+              name="teacherId"
               placeholder="Enter your teacher ID"
               type="text"
               required
@@ -245,6 +279,7 @@ export function TeachersRegisterForm() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               placeholder="Enter your email"
               type="email"
               required
@@ -255,6 +290,7 @@ export function TeachersRegisterForm() {
             <Label htmlFor="phone">Cell Phone</Label>
             <Input
               id="phone"
+              name="phone"
               placeholder="Enter your cell phone"
               type="tel"
               required
@@ -267,7 +303,7 @@ export function TeachersRegisterForm() {
 
         <div className="space-y-2">
           <Label htmlFor="designation">Designation</Label>
-          <Select required disabled={isLoading}>
+          <Select required disabled={isLoading} name="designation">
             <SelectTrigger>
               <SelectValue placeholder="Select designation" />
             </SelectTrigger>
@@ -282,7 +318,7 @@ export function TeachersRegisterForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="department">Department</Label>
-          <Select required disabled={isLoading}>
+          <Select required disabled={isLoading} name="department">
             <SelectTrigger>
               <SelectValue placeholder="Select department" />
             </SelectTrigger>
@@ -301,6 +337,7 @@ export function TeachersRegisterForm() {
           <Label htmlFor="password">Password</Label>
           <Input
             id="password"
+            name="password"
             placeholder="Enter your password"
             type={showPassword ? "text" : "password"}
             required
