@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
 
-export function RegisterForm() {
+export function StudentRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -98,7 +98,7 @@ export function RegisterForm() {
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href="/"
+            href="/student/login"
             className="hover:underline text-blue-900 font-bold"
           >
             Login here

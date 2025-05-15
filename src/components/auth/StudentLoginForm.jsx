@@ -10,7 +10,7 @@ import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-export function LoginForm() {
+export function StudentLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -78,7 +78,7 @@ export function LoginForm() {
         <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link
-            href="/registration"
+            href="/student/registration"
             className=" hover:underline text-blue-900 font-bold"
           >
             Register here
