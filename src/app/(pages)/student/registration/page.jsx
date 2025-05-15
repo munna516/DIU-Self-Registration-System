@@ -1,4 +1,4 @@
-import { RegisterForm } from "@/components/auth/RegisterForm";
+import {  StudentRegisterForm } from "@/components/auth/StudentRegisterForm";
 import {
   Card,
   CardDescription,
@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Image from "next/image";
-import diulogo from "../../../../public/assets/logos/diulogos.png";
+import diulogo from "../../../../../public/assets/logos/diulogos.png";
 
 export default function Registration() {
   return (
@@ -17,13 +17,13 @@ export default function Registration() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center text-blue-900">
-            Create an Account
+            Student Registration
           </CardTitle>
           <CardDescription className="text-center">
             Enter your information to create your account
           </CardDescription>
         </CardHeader>
-        <RegisterForm />
+        <StudentRegisterForm />
       </Card>
     </div>
   );
