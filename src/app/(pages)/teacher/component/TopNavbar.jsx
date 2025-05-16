@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Bell, Menu, User } from "lucide-react";
 
 import { Moon, Sun } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
+import toast from "react-hot-toast";
 export default function TopNavbar({
   isSidebarOpen,
   setIsSidebarOpen,
@@ -11,6 +13,10 @@ export default function TopNavbar({
   setMobileSidebar,
 }) {
   const { theme, setTheme } = useTheme();
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
+    toast.success("Logged out successfully");
+  };
   return (
     <nav className="h-16  border-b dark:border-0  border-gray-200 flex px-4 z-20 dark:bg-gray-800">
       <div className="flex items-center justify-between w-full  ">
@@ -39,7 +45,9 @@ export default function TopNavbar({
             <Bell className="h-5 w-5" />
           </div>
           <div>
-            <User className="h-5 w-5" />
+            <Button variant="diu" onClick={() => handleLogout()}>
+              Logout
+            </Button>
           </div>
         </div>
       </div>

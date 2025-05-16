@@ -12,7 +12,7 @@ export default function Layout({ children }) {
         <div
           className={`
             hidden md:flex overflow-y-auto hide-scrollbar border-r-2 dark:border-0 border-gray-200
-            transition-all duration-700 ease-in-out dark:bg-gray-800
+            transition-all duration-700 ease-in-out dark:bg-gray-800 
             ${isSidebarOpen ? "w-0 md:w-[25%]" : "w-[7%]"}
           `}
         >
