@@ -1,5 +1,6 @@
 "use client";
-
+import Image from "next/image";
+import diu from "../../../../../public/assets/logos/diu.jpg";
 import {
   Sheet,
   SheetContent,
@@ -7,19 +8,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import {
-  UserCircle,
-  Ticket,
-  LogOut,
-  LayoutDashboard,
-  Menu,
-} from "lucide-react";
+import { LayoutDashboard, List, Menu, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
 const navMain = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/user/dashboard" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
+  { label: "Profile", icon: User, href: "/student/profile" },
+  { label: "Teacher List", icon: List, href: "/student/teacher-list" },
 ];
 
 export default function Sidebar({
@@ -35,11 +32,8 @@ export default function Sidebar({
   const SidebarContent = (
     <div className="flex flex-col ">
       {/* Logo */}
-      <div className="flex justify-center  items-center mt-5 mb-3">
-        {/* <img src="/logo.png" alt="PayESV Logo" className="h-12 w-12 mb-2" /> */}
-        <span className="text-xl font-extrabold tracking-wide text-green-600 dark:text-green-500 lg:flex hidden">
-          PAY ESV
-        </span>
+      <div className="flex justify-center  items-center mt-5 ">
+        <Image src={diu} alt="DIU Logo" className="h-16 w-16 mb-2 rounded-lg" />
       </div>
       {/* Profile */}
       <div className="flex flex-col items-center py-4">
@@ -52,18 +46,8 @@ export default function Sidebar({
           <div className="font-semibold">{session?.user?.name}</div>
         )}
         <div className="text-sm text-green-500 mt-2 font-bold uppercase ">
-          {session?.role}
+          {session?.user?.role}
         </div>
-        {(isSidebarOpen || mobileSidebar) && (
-          <div className="flex items-center justify-between  mt-5 w-[70%]">
-            <UserCircle className="w-5 h-5 text-green-600 cursor-pointer" />
-            <Ticket className="w-5 h-5 text-purple-500 hover:text-green-700 cursor-pointer" />
-            <LogOut
-              onClick={() => handleSignOut()}
-              className="w-5 h-5 text-red-500 hover:text-red-700 cursor-pointer"
-            />
-          </div>
-        )}
       </div>
       {/* Main Navigation */}
       <div className="px-6 mt-4">
