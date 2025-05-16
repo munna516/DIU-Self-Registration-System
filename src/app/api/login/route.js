@@ -24,7 +24,10 @@ export async function POST(req) {
     if (!passwordMatch) {
       return Response.json({ message: "Invalid password" }, { status: 401 });
     }
-    const { password: _, ...student } = studentExist;
+    const { password: _, ...students } = studentExist.toObject();
+
+    const student = { ...students, role: "student" };
+    console.log("from server students", student);
     return Response.json(
       { message: "Login successful", student },
       { status: 200 }

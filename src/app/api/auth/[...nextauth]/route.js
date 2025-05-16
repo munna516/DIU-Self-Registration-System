@@ -66,19 +66,41 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      console.log("from jwt", user);
       if (user) {
-        token.role = user.role;
-        token.profile_picture = user.profile_picture;
-        token.provider = user.provider;
+        if (user.student?.role === "student") {
+          token.id = user?.student._id;
+          token.email = user?.student.email;
+          token.name = user?.student.name;
+          token.studentId = user?.student.studentId;
+          token.role = user?.student.role;
+        } else if (user.teacher?.role === "teacher") {
+          token.id = user?.teacher._id;
+          token.email = user?.teacher.email;
+          token.name = user?.teacher.name;
+          token.phone = user?.teacher.phone;
+          token.teacherId = user?.teacher.teacherId;
+          token.department = user?.teacher.department;
+          token.designation = user?.teacher.designation;
+          token.role = user?.teacher.role;
+        }
       }
+
       return token;
     },
     // Attach the custom data from the JWT token to the session
     async session({ session, token }) {
       if (token) {
-        session.role = token.role;
-        session.profile_picture = token.profile_picture;
-        session.provider = token.provider;
+        session.user.id = token?.id;
+        session.user.email = token?.email;
+        session.user.name = token?.name;
+        session.user.phone = token?.phone;
+        session.user.studentId = token?.studentId;
+        session.user.teacherId = token?.teacherId;
+        session.user.department = token?.department;
+        session.user.designation = token.designation;
+        session.user.role = token.role;
+        console.log("from session", session);
       }
       return session;
     },
