@@ -66,7 +66,6 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      console.log("from jwt", user);
       if (user) {
         if (user.student?.role === "student") {
           token.id = user?.student._id;

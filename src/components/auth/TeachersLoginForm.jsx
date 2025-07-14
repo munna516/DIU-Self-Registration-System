@@ -106,7 +106,7 @@ export function TeachersLoginForm() {
         <p>
           <Link
             href="/"
-            className="hover:underline text-blue-900 font-semibold flex items-center justify-center gap-1 mt-3"
+            className="hover:underline text-green-500 font-semibold flex items-center justify-center gap-1 mt-3"
           >
             <span>
               <FaArrowLeft />
