@@ -6,7 +6,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { LayoutDashboard, List, Menu, User } from "lucide-react";
+import {
+  LayoutDashboard,
+  List,
+  Menu,
+  User,
+  BookOpen,
+  Users,
+  Bell,
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -14,7 +22,10 @@ import { usePathname } from "next/navigation";
 
 const navMain = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
-  { label: "Profile", icon: List, href: "/admin/profile" },
+  { label: "Courses", icon: BookOpen, href: "/admin/courses" },
+  { label: "Students", icon: Users, href: "/admin/students" },
+  { label: "Teachers", icon: Users, href: "/admin/teachers" },
+  { label: "Announcements", icon: Bell, href: "/admin/announcements" },
 ];
 
 export default function Sidebar({
@@ -67,7 +78,7 @@ export default function Sidebar({
           className={`text-xs ${
             mobileSidebar
               ? "text-black dark:text-white"
-              : "text-gray-300 dark:text-white"
+              : "text-black-300 dark:text-white"
           } font-semibold mb-3`}
         >
           MAIN

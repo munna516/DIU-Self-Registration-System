@@ -21,6 +21,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         diu: "bg-blue-900 text-white hover:bg-blue-900/90",
         teacher: "bg-green-600 hover:bg-green-600/90 text-white",
+        logout: "bg-red-600 hover:bg-red-600/90 text-white",
       },
       size: {
         default: "h-9 px-4 py-2",
