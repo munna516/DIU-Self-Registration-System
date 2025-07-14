@@ -16,7 +16,7 @@ export default function Registration() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-blue-900">
+          <CardTitle className="text-2xl font-bold text-center text-green-600">
             Teachers Registration
           </CardTitle>
           <CardDescription className="text-center">
