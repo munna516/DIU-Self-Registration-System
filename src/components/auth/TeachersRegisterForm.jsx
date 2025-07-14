@@ -232,8 +232,8 @@ export function TeachersRegisterForm() {
         return;
       }
       if (response.ok) {
-        toast.success("An email has been sent to you to verify your account");
         e.target.reset();
+        router.push("/email-sent");
       } else {
         toast.error("Failed to register teacher");
       }
@@ -375,13 +375,13 @@ export function TeachersRegisterForm() {
             href="/teacher/login"
             className="font-bold text-green-600 hover:underline text-lg"
           >
-            Login 
+            Login
           </Link>
         </p>
         <p>
           <Link
             href="/"
-            className="hover:underline text-blue-900 font-semibold flex items-center justify-center gap-1 mt-3"
+            className="hover:underline text-green-600 font-semibold flex items-center justify-center gap-1 mt-3"
           >
             <span>
               <FaArrowLeft />

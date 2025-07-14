@@ -35,8 +35,8 @@ export function StudentRegisterForm() {
         return;
       }
       if (response.ok) {
-        toast.success("An email has been sent to you to verify your account");
         event.target.reset();
+        router.push("/email-sent");
       } else {
         toast.error("Failed to send email");
       }
