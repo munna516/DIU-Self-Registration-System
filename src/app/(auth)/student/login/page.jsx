@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import Image from "next/image";
 
-export default function Home() {
+export default function StudentLogin() {
   return (
     <div className="flex flex-col min-h-screen items-center justify-center p-4">
       <div className="flex  items-center justify-center">
