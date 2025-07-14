@@ -53,9 +53,26 @@ export const authOptions = {
             }
             const data = await res.json();
             return data;
+          } else if (role === "admin") {
+            const res = await fetch(
+              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/adminlogin`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+              }
+            );
+            if (
+              res.status === 401 ||
+              res.status === 402 ||
+              res.status === 404
+            ) {
+              return null;
+            }
+            const data = await res.json();
+            return data;
           }
         } catch (error) {
-          console.error("Authentication error:", error);
           return null;
         }
       },
@@ -82,6 +99,10 @@ export const authOptions = {
           token.department = user?.teacher.department;
           token.designation = user?.teacher.designation;
           token.role = user?.teacher.role;
+        } else if (user.admin?.role === "admin") {
+          token.id = user?.admin._id;
+          token.email = user?.admin.email;
+          token.role = user?.admin.role;
         }
       }
 
@@ -99,7 +120,6 @@ export const authOptions = {
         session.user.department = token?.department;
         session.user.designation = token.designation;
         session.user.role = token.role;
-        console.log("from session", session);
       }
       return session;
     },

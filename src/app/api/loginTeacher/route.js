@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, role } = await req.json();
     await connect();
     const teacherExist = await Teacher.findOne({ email });
     if (!teacherExist) {
