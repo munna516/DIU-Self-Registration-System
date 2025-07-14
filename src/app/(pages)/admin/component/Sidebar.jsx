@@ -14,6 +14,7 @@ import {
   BookOpen,
   Users,
   Bell,
+  PlusCircle,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -23,6 +24,7 @@ import { usePathname } from "next/navigation";
 const navMain = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
   { label: "Courses", icon: BookOpen, href: "/admin/courses" },
+  { label: "Create Section", icon: PlusCircle, href: "/admin/create-section" },
   { label: "Students", icon: Users, href: "/admin/students" },
   { label: "Teachers", icon: Users, href: "/admin/teachers" },
   { label: "Announcements", icon: Bell, href: "/admin/announcements" },
