@@ -8,7 +8,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { LayoutDashboard, List, Menu, User } from "lucide-react";
+import { BookOpen, BookPlus, LayoutDashboard, List, Menu, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -16,8 +16,10 @@ import { usePathname } from "next/navigation";
 
 const navMain = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
-  { label: "Profile", icon: User, href: "/student/profile" },
   { label: "Teacher List", icon: List, href: "/student/teacher-list" },
+  { label: "Registered Course", icon: BookOpen, href: "/student/resigtered-course" },
+  { label: "Enroll Course", icon: BookPlus, href: "/student/enroll-course" },
+  { label: "Profile", icon: User, href: "/student/profile" },
 ];
 
 export default function Sidebar({
@@ -49,7 +51,7 @@ export default function Sidebar({
       {/* Profile */}
       <div className="flex flex-col items-center py-4">
         <img
-          src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSppkoKsaYMuIoNLDH7O8ePOacLPG1mKXtEng&s"
           alt="Profile"
           className="w-12 h-12 lg:w-16 lg:h-16 rounded-full border-4 border-green-100 shadow mb-2"
         />
@@ -102,7 +104,11 @@ export default function Sidebar({
               className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${
                 isActive(item.href)
                   ? "text-blue-500 bg-white dark:bg-white dark:text-blue-400"
-                  : `${mobileSidebar ? "text-black dark:text-white" : "text-gray-300 dark:text-white"}`
+                  : `${
+                      mobileSidebar
+                        ? "text-black dark:text-white"
+                        : "text-gray-300 dark:text-white"
+                    }`
               }`}
             >
               <item.icon className="w-5 h-5 lg:w-7 lg:h-7 font-semibold " />
