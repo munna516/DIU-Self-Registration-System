@@ -89,6 +89,7 @@ export const authOptions = {
           token.email = user?.student.email;
           token.name = user?.student.name;
           token.studentId = user?.student.studentId;
+          token.department = user?.student.department;
           token.role = user?.student.role;
         } else if (user.teacher?.role === "teacher") {
           token.id = user?.teacher._id;
