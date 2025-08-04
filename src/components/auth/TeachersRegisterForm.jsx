@@ -201,6 +201,7 @@ const designation = [
 export function TeachersRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e) => {
@@ -213,6 +214,22 @@ export function TeachersRegisterForm() {
     const designation = formData.get("designation");
     const department = formData.get("department");
     const password = formData.get("password");
+    setError("");
+
+    // email validation
+    if (!email.includes("@diu.edu.bd")) {
+      setError("Email must be a valid Diu email");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+    if (!password.match(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/)) {
+      setError(
+        "Password must contain one uppercase, lowercase letter & number"
+      );
+    }
     try {
       setIsLoading(true);
       const response = await fetch("/api/teacher/request-email", {
@@ -246,7 +263,7 @@ export function TeachersRegisterForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6  ">
         {/* First Row: Name and Teacher ID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -299,6 +316,8 @@ export function TeachersRegisterForm() {
           </div>
         </div>
 
+        {/* Third Row: Cell Phone */}
+        <div></div>
         {/* Third Row: Designation and Department */}
 
         <div className="space-y-2">
@@ -356,6 +375,11 @@ export function TeachersRegisterForm() {
           </button>
         </div>
       </CardContent>
+      {error && (
+        <p className="text-red-500 text-sm text-center mb-3 font-semibold">
+          {error}
+        </p>
+      )}
       <CardFooter className="flex flex-col space-y-4">
         <Button
           variant="teacher"
@@ -381,7 +405,7 @@ export function TeachersRegisterForm() {
         <p>
           <Link
             href="/"
-            className="hover:underline text-green-600 font-semibold flex items-center justify-center gap-1 mt-3"
+            className="hover:underline text-green-600 font-semibold flex items-center justify-center gap-1 "
           >
             <span>
               <FaArrowLeft />

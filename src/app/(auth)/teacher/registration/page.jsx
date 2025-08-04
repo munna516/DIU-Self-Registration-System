@@ -14,7 +14,7 @@ export default function Registration() {
       <div className="flex items-center justify-center">
         <Image src={diulogo} alt="Diu Logo" width={250} height={150} />
       </div>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-2xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center text-green-600">
             Teachers Registration
