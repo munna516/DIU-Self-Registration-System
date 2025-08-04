@@ -8,48 +8,64 @@ const teachersData = [
     name: "Fatema Tuj Johora",
     email: "fatema.tuz@diu.edu",
     designation: "Assistant Professor",
+    mobile: "01717171717",
+    room: "KT-726",
     department: "CSE",
   },
   {
     name: "Md Ashikur Rahman",
     email: "ashikur.rahman@diu.edu",
     designation: "Assistant Professor",
+    mobile: "01717171717",
+    room: "302",
     department: "EEE",
   },
   {
     name: "Md Moniruzzaman",
     email: "moniruzzaman@diu.edu",
     designation: "Head of Department",
+    mobile: "01717171717",
+    room: "KT-726",
     department: "CSE",
   },
   {
     name: "Dr. Fazlul Hoque",
     email: "fazlul.hoque@diu.edu",
     designation: "Associate Professor",
+    mobile: "01717171717",
+    room: "KT-505",
     department: "CSE",
   },
   {
     name: "Md Soyeb Hossain",
     email: "soyeb.hossain@diu.edu",
     designation: "Lecturer",
+    mobile: "01717171717",
+    room: "KT-1202",
     department: "ENG",
   },
   {
     name: "Md. Shahriar Hossain",
     email: "shahriar.hossain@diu.edu",
     designation: "Lecturer",
+    mobile: "01717171717",
+    room: "820",
     department: "BBA",
   },
   {
     name: "Md. Shakil Hossain",
     email: "shakil.hossain@diu.edu",
     designation: "Lecturer",
+    mobile: "01717171717",
+    room: "101",
     department: "LAW",
   },
   {
     name: "Md. Sojib Hossain",
     email: "sojib.hossain@diu.edu",
     designation: "Lecturer",
+    mobile: "01717171717",
+    room: "101",
     department: "CSE",
   },
 ];
@@ -68,7 +84,7 @@ export default function TeacherList() {
 
   return (
     <div className="">
-      <Card className="p-6 dark:bg-gray-800">
+      <Card className="p-6 dark:bg-slate-800">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-xl font-bold">Teachers List</CardTitle>
           <div className="w-80">
@@ -99,6 +115,12 @@ export default function TeacherList() {
                     Designation
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    Mobile
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    Room
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
                     Department
                   </th>
                 </tr>
@@ -127,6 +149,12 @@ export default function TeacherList() {
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {teacher.designation}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                        {teacher.mobile}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                        {teacher.room}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {teacher.department}
