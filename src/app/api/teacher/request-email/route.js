@@ -3,6 +3,7 @@ import Teacher from "@/models/Teacher";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import { NextResponse } from "next/server";
 
 export async function POST(req) {
   const { name, teacherId, email, phone, designation, department, password } =
@@ -11,7 +12,7 @@ export async function POST(req) {
   await connect();
   const existingTeacher = await Teacher.findOne({ email });
   if (existingTeacher) {
-    return Response.json(
+    return NextResponse.json(
       { message: "Teacher already exists" },
       { status: 400 }
     );
@@ -71,8 +72,10 @@ export async function POST(req) {
       </html>
     `,
   });
-  return Response.json({
-    message: "Check your email to confirm.",
-    status: 200,
-  });
+  return NextResponse.json(
+    {
+      message: "Check your email to confirm.",
+    },
+    { status: 200 }
+  );
 }

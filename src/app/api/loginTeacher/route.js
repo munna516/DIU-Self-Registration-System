@@ -1,6 +1,7 @@
 import connect from "@/lib/mongoose";
 import Teacher from "@/models/Teacher";
 import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
@@ -8,13 +9,13 @@ export async function POST(req) {
     await connect();
     const teacherExist = await Teacher.findOne({ email });
     if (!teacherExist) {
-      return Response.json(
+      return NextResponse.json(
         { message: "Teacher with this email not found" },
         { status: 404 }
       );
     }
     if (teacherExist.isVerified === false) {
-      return Response.json(
+      return NextResponse.json(
         { message: "Please verify your email first" },
         { status: 402 }
       );
@@ -22,11 +23,11 @@ export async function POST(req) {
     const passwordMatch = await bcrypt.compare(password, teacherExist.password);
     console.log(passwordMatch);
     if (!passwordMatch) {
-      return Response.json({ message: "Invalid password" }, { status: 401 });
+      return NextResponse.json({ message: "Invalid password" }, { status: 401 });
     }
     const { password: _, ...teachers } = teacherExist.toObject();
     const teacher = { ...teachers, role: "teacher" };
-    return Response.json(
+    return NextResponse.json(
       { message: "Login successful", teacher },
       { status: 200 }
     );

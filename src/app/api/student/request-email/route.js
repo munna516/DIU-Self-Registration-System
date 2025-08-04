@@ -2,6 +2,7 @@ import connect from "@/lib/mongoose";
 import Student from "@/models/Student";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req) {
@@ -65,8 +66,10 @@ export async function POST(req) {
     `,
   });
 
-  return Response.json({
-    message: "Check your email to confirm.",
-    status: 200,
-  });
+  return NextResponse.json(
+    {
+      message: "Check your email to confirm.",
+    },
+    { status: 200 }
+  );
 }
