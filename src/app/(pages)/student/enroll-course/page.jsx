@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 const department = "CSE";
 const level = "Level-1-Term-1";
@@ -26,7 +27,7 @@ const courses = [
     credit: 3,
     pre: [],
   },
-  { code: "CSE114", title: "Data Structures", credit: 3, pre:[] },
+  { code: "CSE114", title: "Data Structures", credit: 3, pre: [] },
   { code: "CSE115", title: "Algorithms", credit: 3, pre: ["CSE114"] },
   { code: "CSE116", title: "Database Systems", credit: 3, pre: [] },
 ];
@@ -45,9 +46,12 @@ export default function EnrollCourse() {
 
   // Disable a course if any of its prerequisites are enrolled (after enrolling the prereq, main course disables)
   const disabledCourseCodes = courses
-    .filter((c) =>
-      c.pre.length > 0 &&
-      c.pre.some((preCode) => enrolledCourses.some((ec) => ec.code === preCode))
+    .filter(
+      (c) =>
+        c.pre.length > 0 &&
+        c.pre.some((preCode) =>
+          enrolledCourses.some((ec) => ec.code === preCode)
+        )
     )
     .map((c) => c.code);
   // Also disable already enrolled courses
@@ -76,9 +80,7 @@ export default function EnrollCourse() {
         (code) => !enrolledCourses.some((ec) => ec.code === code)
       );
       if (missing.length > 0) {
-        setPrereqCourses(
-          courses.filter((c) => missing.includes(c.code))
-        );
+        setPrereqCourses(courses.filter((c) => missing.includes(c.code)));
         setShowPrereq(true);
         setCanEnroll(false);
         return;
@@ -114,7 +116,11 @@ export default function EnrollCourse() {
       delete copy[prereq.code];
       return copy;
     });
-    alert(`Enrolled in prerequisite: ${prereq.code} - ${prereq.title} (${prereqSection[prereq.code]})`);
+    alert(
+      `Enrolled in prerequisite: ${prereq.code} - ${prereq.title} (${
+        prereqSection[prereq.code]
+      })`
+    );
   };
 
   // Enroll the main course
@@ -141,34 +147,45 @@ export default function EnrollCourse() {
 
   return (
     <div className="">
-      <Card className="p-6 dark:bg-gray-800">
+      <Card className="p-6 dark:bg-slate-800">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl font-bold">Enroll Course</CardTitle>
         </CardHeader>
         <CardContent>
           {/* 1st row: Department & Level */}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <Input
-              value={department}
-              readOnly
-              className="bg-gray-100 dark:bg-gray-700 font-semibold"
-              label="Department"
-            />
-            <Input
-              value={level}
-              readOnly
-              className="bg-gray-100 dark:bg-gray-700 font-semibold"
-              label="Level"
-            />
+            <div className="w-full sm:w-1/2">
+              <Label className="text-sm font-semibold">Department</Label>
+              <Input
+                value={department}
+                readOnly
+                className="bg-gray-100 dark:bg-gray-700 font-semibold"
+                label="Department"
+              />
+            </div>
+            <div className="w-full sm:w-1/2">
+              <Label className="text-sm font-semibold">Level</Label>
+              <Input
+                value={level}
+                readOnly
+                className="bg-gray-100 dark:bg-gray-700 font-semibold w-full"
+                label="Level"
+              />
+            </div>
           </div>
           {/* 2nd row: Course Dropdown */}
           <div className="mb-4">
+            <Label className="text-sm font-semibold">Select Your Course</Label>
             <Select
-              value={selectedCourse ? `${selectedCourse.code} - ${selectedCourse.title}` : ""}
+              value={
+                selectedCourse
+                  ? `${selectedCourse.code} - ${selectedCourse.title}`
+                  : ""
+              }
               onValueChange={handleCourseChange}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select Course (searchable)" />
+                <SelectValue placeholder="Select Course" />
               </SelectTrigger>
               <SelectContent>
                 {courses.map((c) => (
@@ -186,6 +203,7 @@ export default function EnrollCourse() {
           {/* 3rd row: Credit (only if course selected) */}
           {showCredit && selectedCourse && (
             <div className="mb-4">
+              <Label className="text-sm font-semibold">Credit</Label>
               <Input
                 value={selectedCourse.credit}
                 readOnly
@@ -233,12 +251,21 @@ export default function EnrollCourse() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
                     {prereqCourses.map((c) => (
                       <tr key={c.code}>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.code}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.title}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.code}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.title}
+                        </td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                           <Select
                             value={prereqSection[c.code] || ""}
-                            onValueChange={(v) => setPrereqSection((prev) => ({ ...prev, [c.code]: v }))}
+                            onValueChange={(v) =>
+                              setPrereqSection((prev) => ({
+                                ...prev,
+                                [c.code]: v,
+                              }))
+                            }
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Retake Section" />
@@ -299,24 +326,42 @@ export default function EnrollCourse() {
           {/* Enrolled Courses Table */}
           {enrolledCourses.length > 0 && (
             <div className="mt-8">
-              <div className="text-blue-700 font-semibold mb-2">Enrolled Courses:</div>
+              <div className="text-blue-700 font-semibold mb-2">
+                Enrolled Courses:
+              </div>
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-100 dark:bg-gray-700">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Course Code</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Course Title</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Credit</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Section</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Code
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Title
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Credit
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Section
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
                     {enrolledCourses.map((c) => (
                       <tr key={c.code + c.section}>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.code}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.title}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.credit}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{c.section}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.code}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.title}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.credit}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.section}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

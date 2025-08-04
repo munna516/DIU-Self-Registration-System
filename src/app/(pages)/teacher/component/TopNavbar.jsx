@@ -18,7 +18,7 @@ export default function TopNavbar({
     toast.success("Logged out successfully");
   };
   return (
-    <nav className="h-16  border-b dark:border-0  border-gray-200 flex px-4 z-20 dark:bg-gray-800">
+    <nav className="h-16  border-b dark:border-0  border-gray-200 flex px-4 z-20 dark:bg-slate-800">
       <div className="flex items-center justify-between w-full  ">
         <div className="text-xl font-semibold">
           <Menu

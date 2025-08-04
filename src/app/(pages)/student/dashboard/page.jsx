@@ -120,7 +120,7 @@ export default function Dashboard() {
         {stats.map((stat, idx) => (
           <Card
             key={idx}
-            className={`flex items-center justify-between p-6 ${stat.color} dark:bg-gray-800`}
+            className={`flex items-center justify-between p-6 ${stat.color} dark:bg-slate-800`}
           >
             <div className="">
               <div className="p-5">{stat.icon}</div>
@@ -137,7 +137,7 @@ export default function Dashboard() {
         ))}
       </div>
       {/* Bar Chart */}
-      <Card className="p-6 mt-10 mb-20 dark:bg-gray-800">
+      <Card className="p-6 mt-10 mb-20 dark:bg-slate-800">
         <CardHeader>
           <CardTitle>Credit Hours by Course</CardTitle>
         </CardHeader>
