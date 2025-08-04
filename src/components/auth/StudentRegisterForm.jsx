@@ -10,10 +10,142 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TbFidgetSpinner } from "react-icons/tb";
 import toast from "react-hot-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+
+const department = [
+  {
+    value: "Computer Science & Engineering",
+    label: "Computer Science & Engineering",
+  },
+  {
+    value: "Software Engineering",
+    label: "Software Engineering",
+  },
+  {
+    value: "Computing and Information System",
+    label: "Computing and Information System",
+  },
+  {
+    value: "Multimedia and Creative Technology",
+    label: "Multimedia and Creative Technology",
+  },
+  {
+    value: "Information Technology and Management",
+    label: "Information Technology and Management",
+  },
+  {
+    value: "Physical Education and Sports Science",
+    label: "Physical Education and Sports Science",
+  },
+  {
+    value: "Environmental Science and Disaster Management",
+    label: "Environmental Science and Disaster Management",
+  },
+  {
+    value: "Electrical & Electronic Engineering",
+    label: "Electrical & Electronic Engineering",
+  },
+  {
+    value: "Civil Engineering",
+    label: "Civil Engineering",
+  },
+  {
+    value: "Textile Engineering",
+    label: "Textile Engineering",
+  },
+  {
+    value: "Architecture",
+    label: "Architecture",
+  },
+  {
+    value: "Information and Communication Engineering",
+    label: "Information and Communication Engineering",
+  },
+  {
+    value: "Law",
+    label: "Law",
+  },
+  {
+    value: "English",
+    label: "English",
+  },
+  {
+    value: "Journalism and Mass Communication",
+    label: "Journalism and Mass Communication",
+  },
+  {
+    value: "Development Studies",
+    label: "Development Studies",
+  },
+  {
+    value: "Information Science and Library Management",
+    label: "Information Science and Library Management",
+  },
+  {
+    value: "Business Administration",
+    label: "Business Administration",
+  },
+  {
+    value: "Management",
+    label: "Management",
+  },
+  {
+    value: "Real Estate",
+    label: "Real Estate",
+  },
+  {
+    value: "Accounting",
+    label: "Accounting",
+  },
+  {
+    value: "Finance and Banking",
+    label: "Finance and Banking",
+  },
+  {
+    value: "Marketing",
+    label: "Marketing",
+  },
+  {
+    value: "Tourism and Hospitality Management",
+    label: "Tourism and Hospitality Management",
+  },
+  {
+    value: "Innovation and Entrepreneurship",
+    label: "Innovation and Entrepreneurship",
+  },
+  {
+    value: "Pharmacy",
+    label: "Pharmacy",
+  },
+  {
+    value: "Public Health",
+    label: "Public Health",
+  },
+  {
+    value: "Nutrition and Food Engineering",
+    label: "Nutrition and Food Engineering",
+  },
+
+  {
+    value: "Agricultural Science",
+    label: "Agricultural Science",
+  },
+  {
+    value: "Genetic Engineering and Biotechnology",
+    label: "Genetic Engineering and Biotechnology",
+  },
+];
 
 export function StudentRegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (event) => {
@@ -22,13 +154,50 @@ export function StudentRegisterForm() {
     const name = formData.get("name");
     const email = formData.get("email");
     const studentId = formData.get("studentId");
+    const department = formData.get("department");
     const password = formData.get("password");
+    setError("");
+
+    // email validation
+    if (!email.includes("@diu.edu.bd")) {
+      setError("Email must be a valid Diu email");
+      return;
+    }
+
+    // Password  Length validation
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+
+    // password Format validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      setError(
+        "Password must contain one uppercase, lowercase letter & number"
+      );
+      return;
+    }
+
+    // Student ID validation
+    const parts = studentId.split("-");
+    if (parts.length !== 3) {
+      setError("Student ID must be in the format of 201-15-0000");
+      return;
+    }
+
+    // email and Id both validation
+    const shortId = `${parts[1]}-${parts[2]}`;
+    if (!email.includes(shortId)) {
+      setError("Email or Student id is invalid.");
+      return;
+    }
 
     try {
       setIsLoading(true);
       const response = await fetch("/api/student/request-email", {
         method: "POST",
-        body: JSON.stringify({ email, name, studentId, password }),
+        body: JSON.stringify({ email, name, department, studentId, password }),
       });
       if (response.status === 400) {
         toast.error("Student already exists");
@@ -72,6 +241,22 @@ export function StudentRegisterForm() {
             disabled={isLoading}
           />
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="department">Department</Label>
+          <Select required disabled={isLoading} name="department">
+            <SelectTrigger>
+              <SelectValue placeholder="Select department" />
+            </SelectTrigger>
+            <SelectContent>
+              {department.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="studentId">Student ID</Label>
           <Input
@@ -106,6 +291,11 @@ export function StudentRegisterForm() {
           </button>
         </div>
       </CardContent>
+      {error && (
+        <p className="text-red-500 text-sm text-center mb-3 font-semibold">
+          {error}
+        </p>
+      )}
       <CardFooter className="flex flex-col space-y-4">
         <Button
           variant="diu"
@@ -125,7 +315,7 @@ export function StudentRegisterForm() {
             href="/student/login"
             className="hover:underline text-blue-900 font-bold text-lg"
           >
-            Login 
+            Login
           </Link>
         </p>
         <p>

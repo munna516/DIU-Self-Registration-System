@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 
 export async function POST(req) {
-  const { email, name, studentId, password } = await req.json();
+  const { email, name, studentId, password, department } = await req.json();
   await connect();
   const existingStudent = await Student.findOne({ email });
   if (existingStudent) {
@@ -20,6 +20,7 @@ export async function POST(req) {
     name,
     password: hashedPassword,
     studentId,
+    department,
     isVerified: false,
   });
   await newStudent.save();
@@ -38,9 +39,32 @@ export async function POST(req) {
   });
   await transporter.sendMail({
     to: email,
-    subject: "Verify your email",
-    html: `<p>Click <a href="${verifyLink}">here</a> to verify.</p>`,
+    subject: "Please verify your email",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Email Verification</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+          <p>Hello ${name},</p>
+          <p>
+            Thank you for registering. Please click the link below to verify your email address:
+          </p>
+          <p>
+            <a href="${verifyLink}" style="color: #1a73e8; text-decoration: none;">
+              Verify your email
+            </a>
+          </p>
+          <p>If the link does not work, copy and paste this URL into your browser:</p>
+          <p style="word-break: break-all;">${verifyLink}</p>
+          <p>Thank you!<br>Your Team</p>
+        </body>
+      </html>
+    `,
   });
+
   return Response.json({
     message: "Check your email to confirm.",
     status: 200,
