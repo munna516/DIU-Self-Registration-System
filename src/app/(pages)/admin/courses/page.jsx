@@ -335,7 +335,7 @@ export default function Courses() {
     <div className="">
       <Card className="p-6 dark:bg-gray-800">
         <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4">
-          <CardTitle className="text-2xl text-blue-900 dark:text-blue-700 font-bold w-full md:w-auto text-left">
+          <CardTitle className="text-2xl text-blue-700 font-bold w-full md:w-auto text-left">
             Courses
           </CardTitle>
           <div className="w-full md:w-1/2 flex justify-center">
@@ -388,7 +388,7 @@ export default function Courses() {
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>
+                  <DialogTitle className="text-blue-700 text-center text-xl">
                     {editCourseId !== null ? "Edit Course" : "Add New Course"}
                   </DialogTitle>
                 </DialogHeader>

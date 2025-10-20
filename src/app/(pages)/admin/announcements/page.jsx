@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,79 +23,165 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Edit, Trash2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Swal from "sweetalert2";
 
 // Sample departments
 const departments = [
-  "All Departments",
-  "Computer Science & Engineering",
-  "Software Engineering",
-  "Computing and Information System",
-  "Multimedia and Creative Technology",
-  "Information Technology and Management",
-  "Physical Education and Sports Science",
-  "Environmental Science and Disaster Management",
-  "Electrical & Electronic Engineering",
-  "Civil Engineering",
-  "Textile Engineering",
-  "Architecture",
-  "Information and Communication Engineering",
-  "Law",
-  "English",
-  "Journalism and Mass Communication",
-  "Development Studies",
-  "Information Science and Library Management",
-  "Business Administration",
-  "Management",
-  "Real Estate",
-  "Accounting",
-  "Finance and Banking",
-  "Marketing",
-  "Tourism and Hospitality Management",
-  "Innovation and Entrepreneurship",
-  "Pharmacy",
-  "Public Health",
-  "Nutrition and Food Engineering",
-  "Agricultural Science",
-  "Genetic Engineering and Biotechnology",
+  {
+    value: "CSE",
+    label: "Computer Science & Engineering",
+  },
+  {
+    value: "SWE",
+    label: "Software Engineering",
+  },
+  {
+    value: "CIS",
+    label: "Computing and Information System",
+  },
+  {
+    value: "EEE",
+    label: "Electrical & Electronic Engineering",
+  },
+  {
+    value: "CE",
+    label: "Civil Engineering",
+  },
+  {
+    value: "TE",
+    label: "Textile Engineering",
+  },
+  {
+    value: "ARC",
+    label: "Architecture",
+  },
+  {
+    value: "ICE",
+    label: "Information and Communication Engineering",
+  },
+  {
+    value: "LAW",
+    label: "Law",
+  },
+  {
+    value: "ENG",
+    label: "English",
+  },
+  {
+    value: "JMC",
+    label: "Journalism and Mass Communication",
+  },
+  {
+    value: "BBA",
+    label: "Business Administration",
+  },
+  {
+    value: "THM",
+    label: "Tourism and Hospitality Management",
+  },
+  {
+    value: "IE",
+    label: "Innovation and Entrepreneurship",
+  },
+  {
+    value: "PH",
+    label: "Pharmacy",
+  },
+  {
+    value: "NFE",
+    label: "Nutrition and Food Engineering",
+  },
+  {
+    value: "GEB",
+    label: "Genetic Engineering and Biotechnology",
+  },
 ];
 
-// Sample announcements data
-const initialAnnouncements = [
-  {
-    id: 1,
-    title: "Mid-term Examination Schedule",
-    message:
-      "The mid-term examinations will be held from 15th to 20th December 2024. All students are requested to check their examination schedule.",
-    department: "Computer Science & Engineering",
-    postDate: "2024-12-01",
-  },
-  {
-    id: 2,
-    title: "Holiday Notice",
-    message:
-      "The university will remain closed on 16th December 2024 for Victory Day. Classes will resume on 17th December.",
-    department: "All Departments",
-    postDate: "2024-12-10",
-  },
-  {
-    id: 3,
-    title: "Lab Equipment Maintenance",
-    message:
-      "The computer lab will be closed for maintenance on 18th December 2024. Alternative arrangements will be made for practical classes.",
-    department: "Computer Science & Engineering",
-    postDate: "2024-12-12",
-  },
-];
+const departmentLabelByValue = Object.fromEntries(
+  departments.map((d) => [d.value, d.label])
+);
 
 export default function Announcement() {
-  const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     message: "",
     department: "",
+  });
+  const [editId, setEditId] = useState(null);
+
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["announcements"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/announcement");
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch");
+      return json.data;
+    },
+  });
+
+  const list = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
+  const addMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await fetch("/api/admin/announcement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to add");
+      return json.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement added");
+    },
+    onError: (e) => toast.error(e.message || "Failed to add"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await fetch("/api/admin/announcement", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to update");
+      return json.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement updated");
+    },
+    onError: (e) => toast.error(e.message || "Failed to update"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch("/api/admin/announcement", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to delete");
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement deleted");
+    },
+    onError: (e) => toast.error(e.message || "Failed to delete"),
   });
 
   const handleInputChange = (field, value) => {
@@ -113,68 +199,60 @@ export default function Announcement() {
     });
   };
 
-  const handleAdd = () => {
-    if (!formData.title || !formData.message || !formData.department) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+  const validate = () => {
+    if (!formData.title.trim()) return "Title is required";
+    if (!formData.message.trim()) return "Message is required";
+    if (!departments.some((d) => d.value === formData.department))
+      return "Invalid department";
+    return null;
+  };
 
-    const newAnnouncement = {
-      id: Date.now(),
-      title: formData.title,
-      message: formData.message,
+  const handleAdd = async () => {
+    const error = validate();
+    if (error) return toast.error(error);
+    await addMutation.mutateAsync({
+      title: formData.title.trim(),
+      message: formData.message.trim(),
       department: formData.department,
-      postDate: new Date().toISOString().split("T")[0],
-    };
-
-    setAnnouncements((prev) => [newAnnouncement, ...prev]);
+    });
     resetForm();
     setIsAddDialogOpen(false);
-    toast.success("Announcement added successfully!");
   };
 
   const handleEdit = (announcement) => {
-    setEditingAnnouncement(announcement);
     setFormData({
       title: announcement.title,
       message: announcement.message,
       department: announcement.department,
     });
+    setEditId(announcement._id);
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdate = () => {
-    if (!formData.title || !formData.message || !formData.department) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
-    setAnnouncements((prev) =>
-      prev.map((announcement) =>
-        announcement.id === editingAnnouncement.id
-          ? {
-              ...announcement,
-              title: formData.title,
-              message: formData.message,
-              department: formData.department,
-            }
-          : announcement
-      )
-    );
-
+  const handleUpdate = async () => {
+    const error = validate();
+    if (error) return toast.error(error);
+    await updateMutation.mutateAsync({
+      id: editId,
+      title: formData.title.trim(),
+      message: formData.message.trim(),
+      department: formData.department,
+    });
     resetForm();
-    setEditingAnnouncement(null);
+    setEditId(null);
     setIsEditDialogOpen(false);
-    toast.success("Announcement updated successfully!");
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this announcement?")) {
-      setAnnouncements((prev) =>
-        prev.filter((announcement) => announcement.id !== id)
-      );
-      toast.success("Announcement deleted successfully!");
-    }
+    Swal.fire({
+      title: "Delete this announcement?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+    }).then(async (result) => {
+      if (result.isConfirmed) await deleteMutation.mutateAsync(id);
+    });
   };
 
   const handleCancel = () => {
@@ -189,7 +267,7 @@ export default function Announcement() {
       <Card className="dark:bg-slate-800">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl font-bold text-left text-blue-500">
+            <CardTitle className="text-2xl font-bold text-left text-blue-700">
               Announcements
             </CardTitle>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -200,15 +278,19 @@ export default function Announcement() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add New Announcement</DialogTitle>
-                  <DialogDescription>
+                <DialogHeader className="">
+                  <DialogTitle className="text-blue-700 text-xl text-center">
+                    Add New Announcement
+                  </DialogTitle>
+                  <DialogDescription className="text-center">
                     Create a new announcement for the selected department.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">
+                      Title <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="title"
                       placeholder="Enter announcement title"
@@ -219,7 +301,9 @@ export default function Announcement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="message">Message</Label>
+                    <Label htmlFor="message">
+                      Message <span className="text-red-500">*</span>
+                    </Label>
                     <Textarea
                       id="message"
                       placeholder="Enter announcement message"
@@ -231,7 +315,9 @@ export default function Announcement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department">
+                      Department <span className="text-red-500">*</span>
+                    </Label>
                     <Select
                       value={formData.department}
                       onValueChange={(value) =>
@@ -242,9 +328,9 @@ export default function Announcement() {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
-                        {departments.slice(1).map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.value} value={dept.value}>
+                            {dept.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -287,16 +373,28 @@ export default function Announcement() {
                 </tr>
               </thead>
               <tbody>
-                {announcements.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-6 text-gray-500">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-6 text-red-500">
+                      Failed to load announcements
+                    </td>
+                  </tr>
+                ) : list.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-6 text-gray-500">
                       No announcements found.
                     </td>
                   </tr>
                 ) : (
-                  announcements.map((announcement, idx) => (
+                  list.map((announcement, idx) => (
                     <tr
-                      key={announcement.id}
+                      key={announcement._id}
                       className="hover:bg-gray-50 dark:hover:bg-slate-800"
                     >
                       <td className="border border-gray-300 px-4 py-2">
@@ -311,10 +409,15 @@ export default function Announcement() {
                         </div>
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        {announcement.department}
+                        {departmentLabelByValue[announcement.department] ||
+                          announcement.department}
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        {announcement.postDate}
+                        {
+                          new Date(announcement.postDate)
+                            .toISOString()
+                            .split("T")[0]
+                        }
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
                         <div className="flex items-center gap-2">
@@ -329,7 +432,7 @@ export default function Announcement() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(announcement.id)}
+                            onClick={() => handleDelete(announcement._id)}
                             className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -386,9 +489,9 @@ export default function Announcement() {
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.slice(1).map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.value} value={dept.value}>
+                      {dept.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
