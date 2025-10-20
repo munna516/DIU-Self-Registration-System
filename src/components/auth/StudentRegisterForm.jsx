@@ -20,124 +20,108 @@ import {
 
 const department = [
   {
-    value: "Computer Science & Engineering",
+    value: "CSE",
     label: "Computer Science & Engineering",
   },
   {
-    value: "Software Engineering",
+    value: "SWE",
     label: "Software Engineering",
   },
   {
-    value: "Computing and Information System",
+    value: "CIS",
     label: "Computing and Information System",
   },
   {
-    value: "Multimedia and Creative Technology",
+    value: "MCT",
     label: "Multimedia and Creative Technology",
   },
   {
-    value: "Information Technology and Management",
+    value: "ITM",
     label: "Information Technology and Management",
   },
   {
-    value: "Physical Education and Sports Science",
+    value: "PES",
     label: "Physical Education and Sports Science",
   },
   {
-    value: "Environmental Science and Disaster Management",
+    value: "ESDM",
     label: "Environmental Science and Disaster Management",
   },
   {
-    value: "Electrical & Electronic Engineering",
+    value: "EEE",
     label: "Electrical & Electronic Engineering",
   },
   {
-    value: "Civil Engineering",
+    value: "CE",
     label: "Civil Engineering",
   },
   {
-    value: "Textile Engineering",
+    value: "TE",
     label: "Textile Engineering",
   },
   {
-    value: "Architecture",
+    value: "ARC",
     label: "Architecture",
   },
   {
-    value: "Information and Communication Engineering",
+    value: "ICE",
     label: "Information and Communication Engineering",
   },
   {
-    value: "Law",
+    value: "LAW",
     label: "Law",
   },
   {
-    value: "English",
+    value: "ENG",
     label: "English",
   },
   {
-    value: "Journalism and Mass Communication",
+    value: "JMC",
     label: "Journalism and Mass Communication",
   },
   {
-    value: "Development Studies",
+    value: "DS",
     label: "Development Studies",
   },
   {
-    value: "Information Science and Library Management",
+    value: "ISLM",
     label: "Information Science and Library Management",
   },
   {
-    value: "Business Administration",
+    value: "BBA",
     label: "Business Administration",
   },
   {
-    value: "Management",
-    label: "Management",
-  },
-  {
-    value: "Real Estate",
+    value: "RE",
     label: "Real Estate",
   },
   {
-    value: "Accounting",
-    label: "Accounting",
-  },
-  {
-    value: "Finance and Banking",
-    label: "Finance and Banking",
-  },
-  {
-    value: "Marketing",
-    label: "Marketing",
-  },
-  {
-    value: "Tourism and Hospitality Management",
+    value: "THM",
     label: "Tourism and Hospitality Management",
   },
   {
-    value: "Innovation and Entrepreneurship",
+    value: "IE",
     label: "Innovation and Entrepreneurship",
   },
   {
-    value: "Pharmacy",
+    value: "PH",
     label: "Pharmacy",
   },
   {
-    value: "Public Health",
+    value: "PHH",
     label: "Public Health",
   },
   {
-    value: "Nutrition and Food Engineering",
+    value: "NFE",
     label: "Nutrition and Food Engineering",
   },
 
   {
-    value: "Agricultural Science",
+    value: "AS",
     label: "Agricultural Science",
   },
   {
-    value: "Genetic Engineering and Biotechnology",
+    value: "GEB",
     label: "Genetic Engineering and Biotechnology",
   },
 ];

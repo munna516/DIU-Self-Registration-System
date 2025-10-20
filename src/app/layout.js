@@ -5,6 +5,8 @@ import NextAuthProvider from "@/provider/NextAuthProvider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 import { ThemeProvider } from "next-themes";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import QueryProvider from "@/components/QueryProvider/page";
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
@@ -27,7 +29,8 @@ export default async function RootLayout({ children }) {
           enableSystem={false}
         >
           <NextAuthProvider session={session}>
-            {children}
+            <QueryProvider>{children}</QueryProvider>
+
             <Toaster />
           </NextAuthProvider>
         </ThemeProvider>
