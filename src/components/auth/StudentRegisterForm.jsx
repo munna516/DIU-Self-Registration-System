@@ -32,22 +32,6 @@ const department = [
     label: "Computing and Information System",
   },
   {
-    value: "MCT",
-    label: "Multimedia and Creative Technology",
-  },
-  {
-    value: "ITM",
-    label: "Information Technology and Management",
-  },
-  {
-    value: "PES",
-    label: "Physical Education and Sports Science",
-  },
-  {
-    value: "ESDM",
-    label: "Environmental Science and Disaster Management",
-  },
-  {
     value: "EEE",
     label: "Electrical & Electronic Engineering",
   },
@@ -79,21 +63,10 @@ const department = [
     value: "JMC",
     label: "Journalism and Mass Communication",
   },
-  {
-    value: "DS",
-    label: "Development Studies",
-  },
-  {
-    value: "ISLM",
-    label: "Information Science and Library Management",
-  },
+
   {
     value: "BBA",
     label: "Business Administration",
-  },
-  {
-    value: "RE",
-    label: "Real Estate",
   },
   {
     value: "THM",
@@ -108,17 +81,8 @@ const department = [
     label: "Pharmacy",
   },
   {
-    value: "PHH",
-    label: "Public Health",
-  },
-  {
     value: "NFE",
     label: "Nutrition and Food Engineering",
-  },
-
-  {
-    value: "AS",
-    label: "Agricultural Science",
   },
   {
     value: "GEB",

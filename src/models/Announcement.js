@@ -1,28 +1,20 @@
 import mongoose from "mongoose";
+import { Schema } from "mongoose";
 
-const { Schema } = mongoose;
-
-const studentSchema = new Schema(
+const announcementSchema = new Schema(
   {
-    email: {
+    title: {
       type: String,
       required: true,
     },
-    name: {
-      type: String,
-      required: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    studentId: {
+    message: {
       type: String,
       required: true,
     },
     department: {
       type: String,
       enum: [
+        "ALL",
         "CSE",
         "SWE",
         "CIS",
@@ -43,14 +35,13 @@ const studentSchema = new Schema(
       ],
       required: true,
     },
-    isVerified: {
-      type: Boolean,
+    postDate: {
+      type: Date,
       required: true,
-      default: false,
     },
   },
   { timestamps: true }
 );
 
-export default mongoose.models.Student ||
-  mongoose.model("Student", studentSchema);
+export default mongoose.models.Announcement ||
+  mongoose.model("Announcement", announcementSchema);
