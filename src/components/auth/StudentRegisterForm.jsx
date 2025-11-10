@@ -141,11 +141,14 @@ export function StudentRegisterForm() {
       return;
     }
 
+
+    const batch = `${parts[0]}`;
+
     try {
       setIsLoading(true);
       const response = await fetch("/api/student/request-email", {
         method: "POST",
-        body: JSON.stringify({ email, name, department, studentId, password }),
+        body: JSON.stringify({ email, name, department, studentId, password, batch }),
       });
       if (response.status === 400) {
         toast.error("Student already exists");

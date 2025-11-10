@@ -90,6 +90,7 @@ export const authOptions = {
           token.name = user?.student.name;
           token.studentId = user?.student.studentId;
           token.department = user?.student.department;
+          token.batch = user?.student.batch;
           token.role = user?.student.role;
         } else if (user.teacher?.role === "teacher") {
           token.id = user?.teacher._id;
@@ -120,6 +121,7 @@ export const authOptions = {
         session.user.teacherId = token?.teacherId;
         session.user.department = token?.department;
         session.user.designation = token.designation;
+        session.user.batch = token.batch;
         session.user.role = token.role;
       }
       return session;
