@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -9,100 +9,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { useQuery } from "@tanstack/react-query";
 
-// Sample departments
+// Department mapping
+const departmentMap = {
+  CSE: "Computer Science & Engineering",
+  SWE: "Software Engineering",
+  CIS: "Computing and Information System",
+  EEE: "Electrical & Electronic Engineering",
+  CE: "Civil Engineering",
+  TE: "Textile Engineering",
+  ARC: "Architecture",
+  ICE: "Information and Communication Engineering",
+  LAW: "Law",
+  ENG: "English",
+  JMC: "Journalism and Mass Communication",
+  BBA: "Business Administration",
+  THM: "Tourism and Hospitality Management",
+  IE: "Innovation and Entrepreneurship",
+  PH: "Pharmacy",
+  NFE: "Nutrition and Food Engineering",
+  GEB: "Genetic Engineering and Biotechnology",
+};
+
 const departments = [
   "All Departments",
-  "Computer Science & Engineering",
-  "Software Engineering",
-  "Computing and Information System",
-  "Multimedia and Creative Technology",
-  "Information Technology and Management",
-  "Physical Education and Sports Science",
-  "Environmental Science and Disaster Management",
-  "Electrical & Electronic Engineering",
-  "Civil Engineering",
-  "Textile Engineering",
-  "Architecture",
-  "Information and Communication Engineering",
-  "Law",
-  "English",
-  "Journalism and Mass Communication",
-  "Development Studies",
-  "Information Science and Library Management",
-  "Business Administration",
-  "Management",
-  "Real Estate",
-  "Accounting",
-  "Finance and Banking",
-  "Marketing",
-  "Tourism and Hospitality Management",
-  "Innovation and Entrepreneurship",
-  "Pharmacy",
-  "Public Health",
-  "Nutrition and Food Engineering",
-  "Agricultural Science",
-  "Genetic Engineering and Biotechnology",
-];
-
-// Sample teachers data
-const teachersData = [
-  {
-    id: 1,
-    name: "Fateme Tuj Johora",
-    email: "fateme@diu.edu.bd",
-    department: "Computer Science & Engineering",
-    phone: "01711-111111",
-    room: "A-201",
-  },
-  {
-    id: 2,
-    name: "Monir Hossain",
-    email: "monir@diu.edu.bd",
-    department: "Software Engineering",
-    phone: "01712-222222",
-    room: "A-202",
-  },
-  {
-    id: 3,
-    name: "Asaduzzaman",
-    email: "asad@diu.edu.bd",
-    department: "Computing and Information System",
-    phone: "01713-333333",
-    room: "B-101",
-  },
-  {
-    id: 4,
-    name: "Sarah Johnson",
-    email: "sarah@diu.edu.bd",
-    department: "Multimedia and Creative Technology",
-    phone: "01714-444444",
-    room: "C-301",
-  },
-  {
-    id: 5,
-    name: "Michael Brown",
-    email: "michael@diu.edu.bd",
-    department: "Information Technology and Management",
-    phone: "01715-555555",
-    room: "D-105",
-  },
+  ...Object.values(departmentMap),
 ];
 
 export default function Teacher() {
   const [selectedDept, setSelectedDept] = useState("All Departments");
   const [search, setSearch] = useState("");
 
-  // Filter teachers by department and search
-  const filteredTeachers = teachersData.filter((teacher) => {
-    const matchesDept =
-      selectedDept === "All Departments" || teacher.department === selectedDept;
-    const matchesSearch =
-      teacher.name.toLowerCase().includes(search.toLowerCase()) ||
-      teacher.email.toLowerCase().includes(search.toLowerCase());
-    return matchesDept && matchesSearch;
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["teachers"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/get-teacher");
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch teachers");
+      return json.data;
+    },
   });
+
+  const filteredTeachers = useMemo(() => {
+    const list = Array.isArray(data) ? data : [];
+    const q = search.toLowerCase();
+    return list.filter((teacher) => {
+      const deptLabel = departmentMap[teacher.department] || teacher.department;
+      const matchesDept =
+        selectedDept === "All Departments" || deptLabel === selectedDept;
+      const matchesSearch =
+        teacher.name?.toLowerCase().includes(q) ||
+        teacher.email?.toLowerCase().includes(q) ||
+        teacher.teacherId?.toLowerCase().includes(q);
+      return matchesDept && matchesSearch;
+    });
+  }, [data, search, selectedDept]);
 
   return (
     <div className="">
@@ -161,40 +124,61 @@ export default function Teacher() {
                     Phone
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-left">
-                    Room
+                    Designation
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredTeachers.length === 0 ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-6 text-gray-500">
+                    <td
+                      colSpan={6}
+                      className="text-center py-6 text-gray-500 dark:text-gray-300"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="text-center py-6 text-red-500"
+                    >
+                      Failed to load teachers
+                    </td>
+                  </tr>
+                ) : filteredTeachers.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="text-center py-6 text-gray-500 dark:text-gray-300"
+                    >
                       No teachers found.
                     </td>
                   </tr>
                 ) : (
                   filteredTeachers.map((teacher, idx) => (
                     <tr
-                      key={teacher.id}
+                      key={teacher._id || teacher.teacherId}
                       className="hover:bg-gray-50 dark:hover:bg-slate-800"
                     >
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
                         {idx + 1}
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
                         {teacher.name}
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
                         {teacher.email}
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {teacher.department}
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
+                        {departmentMap[teacher.department] || teacher.department}
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
                         {teacher.phone}
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        {teacher.room}
+                      <td className="border border-gray-300 dark:border-gray-700 px-4 py-2">
+                        {teacher.designation || "N/A"}
                       </td>
                     </tr>
                   ))

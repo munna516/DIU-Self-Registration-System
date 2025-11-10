@@ -43,6 +43,9 @@ export default function TopNavbar({
             onClick={() => setMobileSidebar(!mobileSidebar)}
           />
         </div>
+        <div>
+          <h1 className="text-2xl font-bold text-blue-500">Welcome to the Admin Dashboard</h1>
+        </div>
         <div className="flex items-center gap-4 space-x-4 cursor-pointer">
           <div
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
