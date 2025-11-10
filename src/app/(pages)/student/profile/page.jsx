@@ -22,6 +22,7 @@ import {
   Shield,
   Eye,
   EyeOff,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -31,6 +32,7 @@ export default function Profile() {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [passwordData, setPasswordData] = useState({
     oldPassword: "",
     newPassword: "",
@@ -75,22 +77,38 @@ export default function Profile() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
-      // Here you would typically make an API call to change the password
-      console.log("Password change request:", passwordData);
+      try {
+        setIsLoading(true);
+        const res = await fetch("/api/shared/password-change", {
+          method: "PUT",
+          body: JSON.stringify({
+            email: session?.data?.user?.email,
+            oldPassword: passwordData.oldPassword,
+            newPassword: passwordData.newPassword,
+            studentId: session?.data?.user?.studentId,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          toast.success(data.message);
+          setPasswordData({
+            oldPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+          });
+          setErrors({});
+          setIsDialogOpen(false);
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        toast.error("Something went wrong");
+      } finally {
+        setIsLoading(false);
+      }
 
-      // Reset form
-      setPasswordData({
-        oldPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setErrors({});
-      setIsDialogOpen(false);
-
-      // You can add a success message here
-      toast.success("Password changed successfully!");
     }
   };
 
@@ -161,7 +179,7 @@ export default function Profile() {
               </div>
             </div>
 
-            
+
           </div>
 
           {/* Change Password Button */}
@@ -299,7 +317,9 @@ export default function Profile() {
                   <Button variant="outline" onClick={handleCancel}>
                     Cancel
                   </Button>
-                  <Button onClick={handleSubmit}>Change Password</Button>
+                  <Button variant="diu" onClick={handleSubmit} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Change Password"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
