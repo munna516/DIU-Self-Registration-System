@@ -89,14 +89,54 @@ const departments = [
 ];
 
 const levels = [
-  "Level-1-Term-1",
-  "Level-1-Term-2",
-  "Level-2-Term-1",
-  "Level-2-Term-2",
-  "Level-3-Term-1",
-  "Level-3-Term-2",
-  "Level-4-Term-1",
-  "Level-4-Term-2",
+  {
+    value: "L1T1",
+    label: "Level-1-Term-1",
+  },
+  {
+    value: "L1T2",
+    label: "Level-1-Term-2",
+  },
+  {
+    value: "L1T3",
+    label: "Level-1-Term-3",
+  },
+  {
+    value: "L2T1",
+    label: "Level-2-Term-1",
+  },
+  {
+    value: "L2T2",
+    label: "Level-2-Term-2",
+  },
+  {
+    value: "L2T3",
+    label: "Level-2-Term-3",
+  },
+  {
+    value: "L3T1",
+    label: "Level-3-Term-1",
+  },
+  {
+    value: "L3T2",
+    label: "Level-3-Term-2",
+  },
+  {
+    value: "L3T3",
+    label: "Level-3-Term-3",
+  },
+  {
+    value: "L4T1",
+    label: "Level-4-Term-1",
+  },
+  {
+    value: "L4T2",
+    label: "Level-4-Term-2",
+  },
+  {
+    value: "L4T3",
+    label: "Level-4-Term-3",
+  },
 ];
 
 export default function CreateSection() {
@@ -104,7 +144,7 @@ export default function CreateSection() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     department: departments[0].value,
-    level: levels[0],
+    level: levels[0].value,
     count: 1,
   });
   const [editSectionId, setEditSectionId] = useState(null);
@@ -230,7 +270,7 @@ export default function CreateSection() {
   const resetForm = () => {
     setForm({
       department: departments[0].value,
-      level: levels[0],
+      level: levels[0].value,
       count: 1,
     });
     setEditSectionId(null);
@@ -318,9 +358,9 @@ export default function CreateSection() {
                       <SelectTrigger>
                         <SelectValue placeholder="Department" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent >
                         {departments.map((d) => (
-                          <SelectItem key={d.value} value={d.value}>
+                          <SelectItem key={d.value} value={d.value} className="cursor-pointer">
                             {d.label}
                           </SelectItem>
                         ))}
@@ -338,8 +378,8 @@ export default function CreateSection() {
                       </SelectTrigger>
                       <SelectContent>
                         {levels.map((l) => (
-                          <SelectItem key={l} value={l}>
-                            {l}
+                          <SelectItem key={l.value} value={l.value}>
+                            {l.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -444,7 +484,7 @@ export default function CreateSection() {
                         {getDepartmentLabel(section.department)}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                        {section.level}
+                        {levels.find((l) => l.value === section.level)?.label || section.level}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {section.count}

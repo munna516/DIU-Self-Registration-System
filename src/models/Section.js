@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Schema } from "mongoose";
+const { Schema } = mongoose;
 
 const sectionSchema = new Schema(
   {
@@ -29,14 +29,18 @@ const sectionSchema = new Schema(
     level: {
       type: String,
       enum: [
-        "Level-1-Term-1",
-        "Level-1-Term-2",
-        "Level-2-Term-1",
-        "Level-2-Term-2",
-        "Level-3-Term-1",
-        "Level-3-Term-2",
-        "Level-4-Term-1",
-        "Level-4-Term-2",
+        "L1T1",
+        "L1T2",
+        "L1T3",
+        "L2T1",
+        "L2T2",
+        "L2T3",
+        "L3T1",
+        "L3T2",
+        "L3T3",
+        "L4T1",
+        "L4T2",
+        "L4T3",
       ],
       required: true,
     },
@@ -46,13 +50,22 @@ const sectionSchema = new Schema(
       min: 1,
       max: 30,
     },
+    sections: [
+      {
+        name: { type: String, required: true }, // e.g., A, A1, A2
+        capacity: { type: Number, required: true },
+        students: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Student",
+          },
+        ],
+      },
+    ],
   },
   { timestamps: true }
 );
 
-// Ensure unique combination of department and level
 sectionSchema.index({ department: 1, level: 1 }, { unique: true });
 
-export default mongoose.models.Section ||
-  mongoose.model("Section", sectionSchema);
-
+export default mongoose.models.Section || mongoose.model("Section", sectionSchema);

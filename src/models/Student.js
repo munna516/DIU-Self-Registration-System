@@ -43,6 +43,25 @@ const studentSchema = new Schema(
       ],
       required: true,
     },
+    batch: {
+      type: String,
+      required: true,
+    },
+
+    evaluations: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Evaluation",
+      },
+    ],
+
+    registeredCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "RegisterCourse",
+      },
+    ],
+
     isVerified: {
       type: Boolean,
       required: true,

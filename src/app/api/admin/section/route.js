@@ -78,14 +78,18 @@ export async function POST(request) {
 
     // Validate level enum
     const validLevels = [
-      "Level-1-Term-1",
-      "Level-1-Term-2",
-      "Level-2-Term-1",
-      "Level-2-Term-2",
-      "Level-3-Term-1",
-      "Level-3-Term-2",
-      "Level-4-Term-1",
-      "Level-4-Term-2",
+      "L1T1",
+      "L1T2",
+      "L1T3",
+      "L2T1",
+      "L2T2",
+      "L2T3",
+      "L3T1",
+      "L3T2",
+      "L3T3",
+      "L4T1",
+      "L4T2",
+      "L4T3",
     ];
     if (!validLevels.includes(level)) {
       return NextResponse.json(
@@ -158,14 +162,18 @@ export async function PUT(request) {
     // Validate level enum if provided
     if (level) {
       const validLevels = [
-        "Level-1-Term-1",
-        "Level-1-Term-2",
-        "Level-2-Term-1",
-        "Level-2-Term-2",
-        "Level-3-Term-1",
-        "Level-3-Term-2",
-        "Level-4-Term-1",
-        "Level-4-Term-2",
+        "L1T1",
+        "L1T2",
+        "L1T3",
+        "L2T1",
+        "L2T2",
+        "L2T3",
+        "L3T1",
+        "L3T2",
+        "L3T3",
+        "L4T1",
+        "L4T2",
+        "L4T3",
       ];
       if (!validLevels.includes(level)) {
         return NextResponse.json(

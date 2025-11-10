@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req) {
-  const { email, name, studentId, password, department } = await req.json();
+  const { email, name, studentId, password, department, batch } = await req.json();
   await connect();
   const existingStudent = await Student.findOne({ email });
   if (existingStudent) {
@@ -22,7 +22,8 @@ export async function POST(req) {
     password: hashedPassword,
     studentId,
     department,
-    isVerified: false,
+    batch,
+      isVerified: false,
   });
   await newStudent.save();
   const token = jwt.sign({ email }, process.env.JWT_SECRET, {
