@@ -19,7 +19,7 @@ export const authOptions = {
         try {
           if (role === "student") {
             const res = await fetch(
-              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/login`,
+              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/student/login`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -37,7 +37,7 @@ export const authOptions = {
             return data;
           } else if (role === "teacher") {
             const res = await fetch(
-              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/loginTeacher`,
+              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/teacher/loginTeacher`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -55,7 +55,7 @@ export const authOptions = {
             return data;
           } else if (role === "admin") {
             const res = await fetch(
-              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/adminlogin`,
+              `${process.env.NEXT_PUBLIC_NEXTAUTH_URL}/api/admin/adminlogin`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

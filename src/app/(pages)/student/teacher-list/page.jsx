@@ -2,78 +2,29 @@
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 
-const teachersData = [
-  {
-    name: "Fatema Tuj Johora",
-    email: "fatema.tuz@diu.edu",
-    designation: "Assistant Professor",
-    mobile: "01717171717",
-    room: "KT-726",
-    department: "CSE",
-  },
-  {
-    name: "Md Ashikur Rahman",
-    email: "ashikur.rahman@diu.edu",
-    designation: "Assistant Professor",
-    mobile: "01717171717",
-    room: "302",
-    department: "EEE",
-  },
-  {
-    name: "Md Moniruzzaman",
-    email: "moniruzzaman@diu.edu",
-    designation: "Head of Department",
-    mobile: "01717171717",
-    room: "KT-726",
-    department: "CSE",
-  },
-  {
-    name: "Dr. Fazlul Hoque",
-    email: "fazlul.hoque@diu.edu",
-    designation: "Associate Professor",
-    mobile: "01717171717",
-    room: "KT-505",
-    department: "CSE",
-  },
-  {
-    name: "Md Soyeb Hossain",
-    email: "soyeb.hossain@diu.edu",
-    designation: "Lecturer",
-    mobile: "01717171717",
-    room: "KT-1202",
-    department: "ENG",
-  },
-  {
-    name: "Md. Shahriar Hossain",
-    email: "shahriar.hossain@diu.edu",
-    designation: "Lecturer",
-    mobile: "01717171717",
-    room: "820",
-    department: "BBA",
-  },
-  {
-    name: "Md. Shakil Hossain",
-    email: "shakil.hossain@diu.edu",
-    designation: "Lecturer",
-    mobile: "01717171717",
-    room: "101",
-    department: "LAW",
-  },
-  {
-    name: "Md. Sojib Hossain",
-    email: "sojib.hossain@diu.edu",
-    designation: "Lecturer",
-    mobile: "01717171717",
-    room: "101",
-    department: "CSE",
-  },
-];
+
 
 export default function TeacherList() {
   const [search, setSearch] = useState("");
 
-  const filteredTeachers = teachersData.filter((teacher) => {
+  const { data: session } = useSession();
+  const { data: teachers } = useQuery({
+    queryKey: ["teachers-list"],
+    queryFn: async () => {
+      const res = await fetch(`/api/student/teacher-list?department=${session?.user.department}`, {
+        method: "GET",
+      });
+      const data = await res.json();
+      return data?.data;
+    },
+    enabled: !!session?.user.department,
+  });
+
+
+  const filteredTeachers = teachers?.filter((teacher) => {
     const q = search.toLowerCase();
     return (
       teacher.name.toLowerCase().includes(q) ||
@@ -118,15 +69,12 @@ export default function TeacherList() {
                     Mobile
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                    Room
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
                     Department
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                {filteredTeachers.length === 0 ? (
+                {filteredTeachers?.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
@@ -136,7 +84,7 @@ export default function TeacherList() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTeachers.map((teacher, idx) => (
+                  filteredTeachers?.map((teacher, idx) => (
                     <tr key={teacher.email}>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {idx + 1}
@@ -151,10 +99,7 @@ export default function TeacherList() {
                         {teacher.designation}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                        {teacher.mobile}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                        {teacher.room}
+                        {teacher.phone}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {teacher.department}

@@ -49,7 +49,7 @@ export default function Sidebar({
         </div>
       )}
       {/* Profile */}
-      <div className="flex flex-col items-center py-4">
+      <div className="flex flex-col items-center py-4"> 
         <img
           src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
           alt="Profile"
