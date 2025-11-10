@@ -31,7 +31,7 @@ export default function Layout({ children }) {
               setMobileSidebar={setMobileSidebar}
             />
           </div>
-          <div className="p-10  bg-[#f2f2f2] dark:bg-slate-900 h-full overflow-y-auto hide-scrollbar">
+          <div className="p-4 md:p-8 bg-[#f2f2f2] dark:bg-slate-900 h-full overflow-y-auto hide-scrollbar">
             {children}
           </div>
         </div>

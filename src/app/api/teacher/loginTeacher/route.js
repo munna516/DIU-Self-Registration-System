@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { email, password, role } = await req.json();
+    const { email, password } = await req.json();
     await connect();
     const teacherExist = await Teacher.findOne({ email });
     if (!teacherExist) {

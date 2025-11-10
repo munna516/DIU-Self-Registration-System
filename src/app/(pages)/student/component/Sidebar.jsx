@@ -18,10 +18,10 @@ import { FaRegClipboard } from "react-icons/fa";
 
 const navMain = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
-  { label: "Teacher List", icon: List, href: "/student/teacher-list" },
   { label: "Teaching Evaluation", icon: FaRegClipboard, href: "/student/teaching-evaluation" },
   { label: "Registered Course", icon: BookOpen, href: "/student/resigtered-course" },
   { label: "Enroll Course", icon: BookPlus, href: "/student/enroll-course" },
+  { label: "Teacher List", icon: List, href: "/student/teacher-list" },
   { label: "Profile", icon: User, href: "/student/profile" },
 ];
 
