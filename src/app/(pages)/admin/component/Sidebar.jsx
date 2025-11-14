@@ -16,6 +16,7 @@ import {
   Bell,
   PlusCircle,
   Calendar,
+  Settings,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ const navMain = [
   { label: "Registration Schedule", icon: Calendar, href: "/admin/registration-schedule" },
   { label: "Teachers", icon: Users, href: "/admin/teachers" },
   { label: "Announcements", icon: Bell, href: "/admin/announcements" },
+  {label:"Settings", icon: Settings, href: "/admin/settings" },
 ];
 
 export default function Sidebar({
