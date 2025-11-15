@@ -78,8 +78,7 @@ export default function Profile() {
 
   const handleSubmit = () => {
     if (validateForm()) {
-      // Here you would typically make an API call to change the password
-      console.log("Password change request:", passwordData);
+     
 
       // Reset form
       setPasswordData({

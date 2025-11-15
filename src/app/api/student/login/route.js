@@ -21,14 +21,12 @@ export async function POST(req) {
       );
     }
     const passwordMatch = await bcrypt.compare(password, studentExist.password);
-    console.log(passwordMatch);
     if (!passwordMatch) {
       return NextResponse.json({ message: "Invalid password" }, { status: 401 });
     }
     const { password: _, ...students } = studentExist.toObject();
 
     const student = { ...students, role: "student" };
-    console.log("from server students", student);
     return NextResponse.json(
       { message: "Login successful", student },
       { status: 200 }

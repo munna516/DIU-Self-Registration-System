@@ -21,7 +21,6 @@ export async function POST(req) {
       );
     }
     const passwordMatch = await bcrypt.compare(password, teacherExist.password);
-    console.log(passwordMatch);
     if (!passwordMatch) {
       return NextResponse.json({ message: "Invalid password" }, { status: 401 });
     }

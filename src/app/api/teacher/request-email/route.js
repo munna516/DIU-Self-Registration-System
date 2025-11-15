@@ -8,7 +8,6 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   const { name, teacherId, email, phone, designation, department, password } =
     await req.json();
-  console.log(name, teacherId, email, phone, designation, department, password);
   await connect();
   const existingTeacher = await Teacher.findOne({ email });
   if (existingTeacher) {
@@ -29,7 +28,7 @@ export async function POST(req) {
     password: hashedPassword,
     isVerified: false,
   });
-  console.log("newTeacher", newTeacher);
+
 
   await newTeacher.save();
 

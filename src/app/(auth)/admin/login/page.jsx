@@ -45,7 +45,7 @@ export default function Home() {
         router.push("/admin/dashboard");
       }
     } catch (error) {
-      console.log(error);
+      
     } finally {
       setIsLoading(false);
     }
