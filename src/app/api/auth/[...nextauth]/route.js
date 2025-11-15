@@ -85,7 +85,7 @@ export const authOptions = {
     async jwt({ token, user }) {
       if (user) {
         if (user.student?.role === "student") {
-          token.id = user?.student._id;
+          token._id = user?.student._id;
           token.email = user?.student.email;
           token.name = user?.student.name;
           token.studentId = user?.student.studentId;
@@ -93,7 +93,7 @@ export const authOptions = {
           token.batch = user?.student.batch;
           token.role = user?.student.role;
         } else if (user.teacher?.role === "teacher") {
-          token.id = user?.teacher._id;
+          token._id = user?.teacher._id;
           token.email = user?.teacher.email;
           token.name = user?.teacher.name;
           token.phone = user?.teacher.phone;
@@ -102,7 +102,7 @@ export const authOptions = {
           token.designation = user?.teacher.designation;
           token.role = user?.teacher.role;
         } else if (user.admin?.role === "admin") {
-          token.id = user?.admin._id;
+          token._id = user?.admin._id;
           token.email = user?.admin.email;
           token.role = user?.admin.role;
         }
@@ -113,7 +113,7 @@ export const authOptions = {
     // Attach the custom data from the JWT token to the session
     async session({ session, token }) {
       if (token) {
-        session.user.id = token?.id;
+        session.user._id = token?._id;
         session.user.email = token?.email;
         session.user.name = token?.name;
         session.user.phone = token?.phone;
