@@ -293,7 +293,7 @@ export default function EnrollCourse() {
                   <Input
                     value={
                       session?.user?.studentId
-                        ? "Level-" + getStudentTerm(session?.user?.studentId).split("L")[1].split("T")[0] + " Term-" + getStudentTerm(session?.user?.studentId).split("T")[1]
+                        ? "Level-" + getStudentTerm(session?.user?.studentId).split("L")[1].split("T")[0] + "   Term-" + getStudentTerm(session?.user?.studentId).split("T")[1]
                         : ""
                     }
                     readOnly
