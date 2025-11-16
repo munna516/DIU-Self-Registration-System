@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,57 +12,107 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 
 export default function TeachingEvaluation() {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [selectedSemester, setSelectedSemester] = useState("");
   const [courses, setCourses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [evaluationData, setEvaluationData] = useState({});
 
-  // Sample semester data
-  const semesters = [
-    "Spring 2025",
-    "Fall 2024",
-    "Summer 2024",
-    "Spring 2024",
-    "Fall 2023",
-    "Summer 2023",
-    "Spring 2023",
-    "Fall 2022",
-  ];
+  // Fetch evaluation status to check if evaluation is enabled
+  const { data: evaluationStatus, isLoading: isLoadingEvaluationStatus } = useQuery({
+    queryKey: ["evaluation-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/student/evaluation-status");
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to fetch evaluation status");
+      }
+      return json.data;
+    },
+  });
 
-  // Sample course data
-  const sampleCourses = [
-    {
-      id: 1,
-      courseName: "FYDP (Title Defense)",
-      courseCode: "CSE499",
-      section: "61_A",
-      teacherName: "Fateme Tuj Johora",
-      submitted: false,
+  const isEvaluationEnabled = evaluationStatus?.evalutionIsOpen || false;
+
+  // Fetch previous semester
+  const { data: previousSemesterData, isLoading: isLoadingPreviousSemester } = useQuery({
+    queryKey: ["previous-semester"],
+    queryFn: async () => {
+      const res = await fetch("/api/student/previous-semester");
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to fetch previous semester");
+      }
+      return json.data;
     },
-    {
-      id: 2,
-      courseName: "Database Management Systems",
-      courseCode: "CSE301",
-      section: "61_A",
-      teacherName: "Monir Hossain",
-      submitted: false,
+  });
+
+  // Set the previous semester as selected when it's loaded
+  useEffect(() => {
+    if (previousSemesterData?.previousSemester) {
+      setSelectedSemester(previousSemesterData.previousSemester);
+    }
+  }, [previousSemesterData]);
+
+  // Fetch courses for the selected semester
+  const { data: coursesData, isLoading: isLoadingCourses, refetch: refetchCourses } = useQuery({
+    queryKey: ["evaluation-courses", session?.user?.studentId, selectedSemester],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/evaluation-courses?studentId=${session?.user?.studentId}&semester=${selectedSemester}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to fetch courses");
+      }
+      return json.data || [];
     },
-    {
-      id: 3,
-      courseName: "Software Engineering",
-      courseCode: "CSE401",
-      section: "61_A",
-      teacherName: "Asaduzzaman",
-      submitted: false,
+    enabled: !!selectedSemester && !!session?.user?.studentId && isEvaluationEnabled,
+  });
+
+  // Update courses when data is fetched
+  useEffect(() => {
+    if (coursesData) {
+      setCourses(coursesData);
+    }
+  }, [coursesData]);
+
+  // Mutation for submitting evaluation
+  const submitEvaluationMutation = useMutation({
+    mutationFn: async (formData) => {
+      const res = await fetch("/api/student/submit-evaluation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to submit evaluation");
+      }
+      return json.data;
     },
-  ];
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-courses"] });
+      toast.success("Evaluation submitted successfully!");
+      setShowForm(false);
+      setSelectedCourse(null);
+      setEvaluationData({});
+      refetchCourses();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to submit evaluation");
+    },
+  });
 
   const handleSearch = () => {
     if (selectedSemester) {
-      setCourses(sampleCourses);
+      refetchCourses();
     }
   };
 
@@ -80,17 +130,47 @@ export default function TeachingEvaluation() {
   };
 
   const handleSubmit = () => {
-    // Update the course submission status
-    setCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? { ...course, submitted: true }
-          : course
-      )
-    );
-    setShowForm(false);
-    setSelectedCourse(null);
-    setEvaluationData({});
+    // Validate that all questions are answered
+    const evaluationQuestions = [
+      "The teacher gave a detailed course outline with the names of the required textbooks and reference materials.",
+      "The teacher maintained proper class schedule and was punctual.",
+      "The teacher used practical examples to explain theoretical concepts.",
+      "The teacher encouraged class discussions and student participation.",
+      "The teacher provided constructive feedback on assignments and exams.",
+      "The teacher evaluated assignments and exams fairly and promptly.",
+      "The teacher communicated clearly and was easily understandable.",
+      "The teacher covered the syllabus comprehensively.",
+      "The teacher was impartial and treated all students equally.",
+      "The teacher was available for consultation and was friendly.",
+    ];
+
+    const answers = [];
+    let allAnswered = true;
+
+    for (let i = 1; i <= evaluationQuestions.length; i++) {
+      if (!evaluationData[i]) {
+        allAnswered = false;
+        toast.error(`Please answer question ${i}`);
+        return;
+      }
+      answers.push({
+        questionText: evaluationQuestions[i - 1],
+        rating: evaluationData[i],
+      });
+    }
+
+    if (!allAnswered) {
+      return;
+    }
+
+    // Submit evaluation
+    submitEvaluationMutation.mutate({
+      studentId: session?.user?.studentId,
+      semester: selectedSemester,
+      courseId: selectedCourse.courseId,
+      sectionId: selectedCourse.sectionId,
+      answers: answers,
+    });
   };
 
   const handleCancel = () => {
@@ -113,7 +193,7 @@ export default function TeachingEvaluation() {
   ];
 
   const ratingOptions = [
-    "Below average",
+    "Below Average",
     "Average",
     "Good",
     "Very Good",
@@ -129,35 +209,60 @@ export default function TeachingEvaluation() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Semester Selection */}
-          <div className="flex gap-4 mb-6">
+          {isLoadingEvaluationStatus || isLoadingPreviousSemester ? (
+            <div className="text-center py-8">
+              <div className="text-lg font-semibold text-blue-600 dark:text-gray-400">
+                Loading...
+              </div>
+            </div>
+          ) : !isEvaluationEnabled ? (
+            <div className="text-center py-12">
+              <div className="text-2xl font-semibold text-red-600 dark:text-red-400">
+                Teaching Evaluation is not opened yet.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Semester Selection */}
+              <div className="flex gap-4 mb-6">
             <div className="flex-1">
               <Label htmlFor="semester">Category</Label>
               <Select
                 value={selectedSemester}
                 onValueChange={setSelectedSemester}
+                disabled={!previousSemesterData?.previousSemester}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select semester" />
                 </SelectTrigger>
                 <SelectContent>
-                  {semesters.map((semester) => (
-                    <SelectItem key={semester} value={semester}>
-                      {semester}
+                  {previousSemesterData?.previousSemester && (
+                    <SelectItem value={previousSemesterData.previousSemester}>
+                      {previousSemesterData.previousSemester}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-end">
-              <Button variant="diu" onClick={handleSearch} disabled={!selectedSemester}>
-                Search
+              <Button 
+                variant="diu" 
+                onClick={handleSearch} 
+                disabled={!selectedSemester || isLoadingCourses}
+              >
+                {isLoadingCourses ? "Loading..." : "Search"}
               </Button>
             </div>
           </div>
 
           {/* Course Table */}
-          {courses.length > 0 && (
+          {isLoadingCourses ? (
+            <div className="text-center py-8">
+              <div className="text-lg font-semibold text-blue-600 dark:text-gray-400">
+                Loading courses...
+              </div>
+            </div>
+          ) : courses.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 dark:border-gray-700">
                 <thead>
@@ -178,7 +283,7 @@ export default function TeachingEvaluation() {
                 </thead>
                 <tbody>
                   {courses.map((course) => (
-                    <tr key={course.id} className="">
+                    <tr key={course.id || course.courseId} className="">
                       <td className="border border-gray-300 px-4 py-2">
                         {course.submitted ? (
                           <Button
@@ -212,7 +317,13 @@ export default function TeachingEvaluation() {
                 </tbody>
               </table>
             </div>
-          )}
+          ) : selectedSemester ? (
+            <div className="text-center py-8">
+              <div className="text-lg font-semibold text-gray-600 dark:text-gray-400">
+                No courses found for {selectedSemester}. Please make sure you were enrolled in courses for this semester.
+              </div>
+            </div>
+          ) : null}
 
           {/* Evaluation Form */}
           {showForm && selectedCourse && (
@@ -283,14 +394,25 @@ export default function TeachingEvaluation() {
                   </div>
 
                   <div className="flex justify-end gap-3">
-                    <Button variant="destructive" onClick={handleCancel}>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleCancel}
+                      disabled={submitEvaluationMutation.isPending}
+                    >
                       Cancel
                     </Button>
-                    <Button onClick={handleSubmit}>Submit</Button>
+                    <Button 
+                      onClick={handleSubmit}
+                      disabled={submitEvaluationMutation.isPending}
+                    >
+                      {submitEvaluationMutation.isPending ? "Submitting..." : "Submit"}
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </CardContent>
       </Card>

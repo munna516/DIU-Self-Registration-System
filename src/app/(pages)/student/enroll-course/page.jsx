@@ -26,8 +26,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-const labSubsections = ["1", "2"]; // For A1, A2, etc.
-const retakeSections = ["Retake-A", "Retake-B"];
 
 // Helper function to generate section letters based on count
 const generateSections = (count) => {
@@ -42,10 +40,10 @@ export default function EnrollCourse() {
   const { data: session } = useSession();
   const router = useRouter();
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(""); // Section for regular courses
-  const [selectedLabSubsection, setSelectedLabSubsection] = useState(""); // Subsection for lab courses
-  const [pendingCourses, setPendingCourses] = useState([]); // {code, title, credit, section, isLab, isPrereq}
-  const [commonSection, setCommonSection] = useState(""); // Common section for all regular courses
+  const [selectedSection, setSelectedSection] = useState("");
+  const [selectedLabSubsection, setSelectedLabSubsection] = useState("");
+  const [pendingCourses, setPendingCourses] = useState([]);
+  const [commonSection, setCommonSection] = useState("");
   const [showEvaluationToast, setShowEvaluationToast] = useState(false);
   const queryClient = useQueryClient();
 
@@ -95,15 +93,27 @@ export default function EnrollCourse() {
     enabled: !!session?.user?.department && !!session?.user?.studentId,
   });
 
+  const { data: semesterData, isLoading: isLoadingSemester } = useQuery({
+    queryKey: ["semester"],
+    queryFn: async () => {
+      const res = await fetch("/api/student/get-semester-info");
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch semester");
+      return json.data;
+    },
+    enabled: !!session?.user?.studentId,
+  });
+
   // Transform courses data to match the expected format
   const courses = coursesData
     ? coursesData.map((course) => ({
-        code: course.courseCode,
-        title: course.courseTitle,
-        credit: course.credit,
-        pre: course.prerequisite || [],
-        isLab: course.courseType === "Lab",
-      }))
+      code: course.courseCode,
+      title: course.courseTitle,
+      credit: course.credit,
+      pre: course.prerequisite || [],
+      isLab: course.courseType === "Lab",
+    }))
     : [];
 
   // Fetch sections from API
@@ -143,13 +153,15 @@ export default function EnrollCourse() {
 
   // Use enrolledCoursesData for checking enrolled courses
   const enrolledCourses = enrolledCoursesData || [];
-  
+
   // Check if student has enrolled courses (hide enrollment form if they have)
   const hasEnrolledCourses = enrolledCourses.length > 0;
 
-  // Check if registration is currently open (between start and end date/time)
-  const isRegistrationOpen = () => {
-    if (!registrationSchedule || !registrationSchedule.isEnabled) return false;
+  // Check registration status: "open", "notOpen", or "closed"
+  const getRegistrationStatus = () => {
+    if (!registrationSchedule || !registrationSchedule.isEnabled) {
+      return "notOpen";
+    }
 
     const now = new Date();
 
@@ -169,8 +181,19 @@ export default function EnrollCourse() {
     const registrationEndDateTime = new Date(endDate);
     registrationEndDateTime.setHours(endHours, endMinutes, 0, 0);
 
-    // Check if current time is between start and end
-    return now >= registrationStartDateTime && now <= registrationEndDateTime;
+    // Check registration status
+    if (now < registrationStartDateTime) {
+      return "notOpen"; // Registration hasn't started yet
+    } else if (now > registrationEndDateTime) {
+      return "closed"; // Registration has ended
+    } else {
+      return "open"; // Registration is currently open
+    }
+  };
+
+  // Check if registration is currently open (between start and end date/time)
+  const isRegistrationOpen = () => {
+    return getRegistrationStatus() === "open";
   };
 
   // Check if evaluation is completed and show toast if needed
@@ -229,17 +252,7 @@ export default function EnrollCourse() {
       pendingCourses.some((pc) => pc.code === course.code)
     );
 
-  // Debug logging
-  console.log(
-    "Available courses (no prerequisites):",
-    availableCourses.map((c) => c.code)
-  );
-  console.log(
-    "Pending courses:",
-    pendingCourses.map((pc) => pc.code)
-  );
-  console.log("All courses added:", allCoursesAdded);
-
+  
   const handleCourseChange = (value) => {
     const course = courses.find((c) => `${c.code} - ${c.title}` === value);
     setSelectedCourse(course);
@@ -401,17 +414,17 @@ export default function EnrollCourse() {
     onSuccess: async (data) => {
       // Show success toast
       toast.success(`Successfully enrolled in ${pendingCourses.length} course(s)!`);
-      
+
       // Clear pending courses and reset
       setPendingCourses([]);
       setSelectedSection("");
       setSelectedLabSubsection("");
       setCommonSection("");
-      
+
       // Invalidate and refetch queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ["sections"] });
       await queryClient.invalidateQueries({ queryKey: ["registered-courses"] });
-      
+
       // Fetch enrolled courses after successful enrollment
       await refetchEnrolledCourses();
     },
@@ -496,102 +509,51 @@ export default function EnrollCourse() {
 
       <Card className="p-6 dark:bg-slate-800">
         <CardHeader className="pb-4">
-          {hasEnrolledCourses ? (
-            <CardTitle className="text-xl font-bold">Enrolled Courses</CardTitle>
-          ) : (
-            <CardTitle className="text-xl font-bold">Enroll Course</CardTitle>
-          )}
+
+          <CardTitle className="text-xl font-bold text-blue-700 dark:text-blue-400">Enroll Course</CardTitle>
+
         </CardHeader>
         <CardContent>
-          {isLoadingSchedule || isLoadingCourses || isLoadingSections || isLoadingEnrolledCourses ? (
+          {isLoadingSchedule || isLoadingCourses || isLoadingSections || isLoadingEnrolledCourses || isLoadingSemester ? (
             <div className="text-center py-8">
               <div className="text-lg font-semibold text-blue-600 dark:text-gray-400">
                 Loading...
               </div>
             </div>
           ) : hasEnrolledCourses ? (
-            /* Show only enrolled courses table when student has enrolled */
-            <div>
-              {!isRegistrationOpen() && (
-                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="text-blue-700 dark:text-blue-400 font-semibold">
-                    Registration is currently closed. You have already enrolled in the following courses:
-                  </div>
+            /* Show only message when student has enrolled */
+            <div className="text-center py-12">
+              <div className="p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 inline-block">
+                <div className="text-green-700 dark:text-green-400 font-semibold text-xl">
+                  You have enrolled in courses.
                 </div>
-              )}
-              <div className="text-blue-700 dark:text-blue-400 font-semibold mb-2">
-              
-              </div>
-              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-100 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Course Code
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Course Title
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Credit
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Section
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Type
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                    {enrolledCoursesData.map((c, index) => (
-                      <tr key={c.code + c.section + index}>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                          {c.code}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                          {c.title}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                          {c.credit}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 font-semibold">
-                          {c.section}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                          {c.courseType === "Lab" ? (
-                            <span className="text-purple-600 dark:text-purple-400">
-                              Lab
-                            </span>
-                          ) : (
-                            <span className="text-blue-600 dark:text-blue-400">
-                              Theory
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           ) : !isRegistrationOpen() ? (
             <div className="text-center py-8 ">
-              <div className="text-2xl font-semibold text-red-600 dark:text-red-400">
-                Registration Is Not Open
-              </div>
+              {getRegistrationStatus() === "closed" ? (
+                <div className="text-2xl font-semibold text-red-600 dark:text-red-400">
+                  Registration Is Closed
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-semibold text-red-600 dark:text-red-400">
+                    Registration Is Not Open
+                  </div>
 
-              <div className="mt-4 text-center font-semibold text-blue-600 dark:text-blue-400">
-                Note : If
-                you not completed your teaching evaluation, you will not be able
-                to enroll in any course. <br /> Please complete your teaching
-                evaluation first. <br />
-                <Link href="/student/teaching-evaluation">
-                  <Button variant="diu" className="ml-2 mt-2">
-                    Here
-                  </Button>
-                </Link>
-              </div>
+                  <div className="mt-4 text-center font-semibold text-blue-600 dark:text-blue-400">
+                    Note : If
+                    you not completed your teaching evaluation, you will not be able
+                    to enroll in any course. <br /> Please complete your teaching
+                    evaluation first. <br />
+                    <Link href="/student/teaching-evaluation">
+                      <Button variant="diu" className="ml-2 mt-2">
+                        Here
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -619,16 +581,7 @@ export default function EnrollCourse() {
                       <Label className="text-sm font-semibold">Level</Label>
                       <Input
                         value={
-                          session?.user?.studentId
-                            ? "Level-" +
-                            getStudentTerm(session?.user?.studentId)
-                              .split("L")[1]
-                              .split("T")[0] +
-                            " Term-" +
-                            getStudentTerm(session?.user?.studentId).split(
-                              "T"
-                            )[1]
-                            : ""
+                          "Level-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("L")[1].split("T")[0] + "  Term-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("T")[1]
                         }
                         readOnly
                         className="bg-gray-100 dark:bg-gray-700 font-semibold w-full"
@@ -864,7 +817,7 @@ export default function EnrollCourse() {
                           className="whitespace-nowrap"
                           onClick={handleEnrollAll}
                           disabled={
-                            !allCoursesAdded || 
+                            !allCoursesAdded ||
                             availableCourses.length === 0 ||
                             enrollMutation.isPending
                           }
