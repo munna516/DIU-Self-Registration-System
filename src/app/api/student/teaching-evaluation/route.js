@@ -3,6 +3,7 @@ import connect from "@/lib/mongoose";
 import { getStudentTerm } from "@/utils/studentTerm";
 import Student from "@/models/Student";
 import Evaluation from "@/models/Evaluation";
+import { getPreviousSemester } from "@/utils/getPreviousSemester";
 
 export async function GET(request) {
   try {
@@ -21,70 +22,74 @@ export async function GET(request) {
     if (term == "L1T1") {
       return NextResponse.json({ success: true, data: true }, { status: 200 });
     } else {
-      const evaluation = await Student.findOne({ _id: id }).populate(
-        "evaluations"
-      );
+      // Find student - evaluations array now contains objects with { type: ObjectId, semester: String }
+      const student = await Student.findOne({ _id: id });
 
-      if (!evaluation) {
+      if (!student) {
         return NextResponse.json(
           { success: false, data: false },
           { status: 404 }
         );
       }
 
+      console.log("student evaluations", student.evaluations);
+
       // Check if evaluations array exists and has elements
       if (
-        !evaluation.evaluations ||
-        !Array.isArray(evaluation.evaluations) ||
-        evaluation.evaluations.length === 0
+        !student.evaluations ||
+        !Array.isArray(student.evaluations) ||
+        student.evaluations.length === 0
       ) {
         return NextResponse.json(
           { success: false, data: false },
           { status: 404 }
         );
       }
-      console.log("first")
 
-      // Get today's date
-      const today = new Date();
-      const currentMonth = today.getMonth() + 1; // getMonth() returns 0-11, so add 1
-      const currentYear = today.getFullYear();
 
-      // Determine current semester based on month
-      // Jan (1) to April (4) = Spring
-      // May (5) to August (8) = Summer
-      // September (9) to December (12) = Fall
-      let currentSemester, currentSemesterYear;
-      if (currentMonth >= 1 && currentMonth <= 4) {
-        currentSemester = "spring";
-        currentSemesterYear = currentYear;
-      } else if (currentMonth >= 5 && currentMonth <= 8) {
-        currentSemester = "summer";
-        currentSemesterYear = currentYear;
-      } else {
-        currentSemester = "fall";
-        currentSemesterYear = currentYear;
-      }
+      // // Get today's date
+      // const today = new Date();
+      // const currentMonth = today.getMonth() + 1; // getMonth() returns 0-11, so add 1
+      // const currentYear = today.getFullYear();
 
-      // Determine previous semester
-      let previousSemester, previousSemesterYear;
-      if (currentSemester === "spring") {
-        // Previous of Spring is Fall of previous year
-        previousSemester = "fall";
-        previousSemesterYear = currentSemesterYear - 1;
-      } else if (currentSemester === "summer") {
-        // Previous of Summer is Spring of same year
-        previousSemester = "spring";
-        previousSemesterYear = currentSemesterYear;
-      } else {
-        // Previous of Fall is Summer of same year
-        previousSemester = "summer";
-        previousSemesterYear = currentSemesterYear;
-      }
+      // // Determine current semester based on month
+      // // Jan (1) to April (4) = Spring
+      // // May (5) to August (8) = Summer
+      // // September (9) to December (12) = Fall
+      // let currentSemester, currentSemesterYear;
+      // if (currentMonth >= 1 && currentMonth <= 4) {
+      //   currentSemester = "spring";
+      //   currentSemesterYear = currentYear;
+      // } else if (currentMonth >= 5 && currentMonth <= 8) {
+      //   currentSemester = "summer";
+      //   currentSemesterYear = currentYear;
+      // } else {
+      //   currentSemester = "fall";
+      //   currentSemesterYear = currentYear;
+      // }
+
+      // // Determine previous semester
+      // let previousSemester, previousSemesterYear;
+      // if (currentSemester === "spring") {
+      //   // Previous of Spring is Fall of previous year
+      //   previousSemester = "fall";
+      //   previousSemesterYear = currentSemesterYear - 1;
+      // } else if (currentSemester === "summer") {
+      //   // Previous of Summer is Spring of same year
+      //   previousSemester = "spring";
+      //   previousSemesterYear = currentSemesterYear;
+      // } else {
+      //   // Previous of Fall is Summer of same year
+      //   previousSemester = "summer";
+      //   previousSemesterYear = currentSemesterYear;
+      // }
+
+
 
       // Get the last element of the evaluations array
+      // Now evaluations is an array of objects: [{ type: ObjectId, semester: String }, ...]
       const lastEvaluation =
-        evaluation.evaluations[evaluation.evaluations.length - 1];
+        student.evaluations[student.evaluations.length - 1];
 
       // Check if last evaluation exists and has a semester field
       if (!lastEvaluation || !lastEvaluation.semester) {
@@ -101,10 +106,8 @@ export async function GET(request) {
       const lastEvaluationSemester = lastEvaluation.semester
         .toLowerCase()
         .trim();
-      const expectedPreviousSemester =
-        `${previousSemester} ${previousSemesterYear}`.toLowerCase();
-      console.log("a", expectedPreviousSemester);
-      console.log("b", lastEvaluationSemester);
+      const expectedPreviousSemester = `${getPreviousSemester()}`.toLowerCase();
+
       // Check if the last evaluation's semester matches the previous semester
       if (lastEvaluationSemester === expectedPreviousSemester) {
         return NextResponse.json(
