@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
 
 const studentSchema = new Schema(
@@ -50,15 +49,29 @@ const studentSchema = new Schema(
 
     evaluations: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Evaluation",
+        type: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Evaluation",
+          required: true,
+        },
+        semester: {
+          type: String,
+          required: true,
+        },
       },
     ],
 
     registeredCourses: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "RegisterCourse",
+        type: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "RegisterCourse",
+          required: true,
+        },
+        semester: {
+          type: String,
+          required: true,
+        },
       },
     ],
 

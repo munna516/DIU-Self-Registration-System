@@ -3,8 +3,13 @@ import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 
 const semesters = [
+  "Fall 2026",
+  "Summer 2026",
+  "Spring 2026",
   "Fall 2025",
   "Summer 2025",
   "Spring 2025",
@@ -17,65 +22,38 @@ const semesters = [
   "Fall 2022",
   "Summer 2022",
   "Spring 2022",
-  "Fall 2021",
-  "Summer 2021",
-  "Spring 2021",
-  "Fall 2020",
-  "Summer 2020",
-  "Spring 2020",
-];
-
-const registeredCourses = [
-  {
-    semester: "Summer 2025",
-    code: "CSE101",
-    title: "Introduction to Computer Science",
-    credit: 3,
-    section: "A",
-    teacher: "Fatema Tuj Johora",
-  },
-  {
-    semester: "Summer 2025",
-    code: "CSE102",
-    title: "Programming Fundamentals",
-    credit: 3,
-    section: "B",
-    teacher: "Md Ashikur Rahman",
-  },
-  {
-    semester: "Summer 2025",
-    code: "CSE201",
-    title: "Data Structures",
-    credit: 3,
-    section: "A",
-    teacher: "Md Moniruzzaman",
-  },
-  {
-    semester: "Summer 2025",
-    code: "CSE202",
-    title: "Algorithms",
-    credit: 3,
-    section: "B",
-    teacher: "Dr. Fazlul Hoque",
-  },
-  {
-    semester: "Summer 2025",
-    code: "CSE301",
-    title: "Database Systems",
-    credit: 3,
-    section: "A",
-    teacher: "Md Soyeb Hossain",
-  },
 ];
 
 export default function RegisteredCourse() {
+  const { data: session } = useSession();
   const [selectedSemester, setSelectedSemester] = useState(semesters[0]);
-  const [filtered, setFiltered] = useState([]);
+  const [searchSemester, setSearchSemester] = useState(null); // Track which semester to search for
+
+  // Fetch registered courses for the selected semester (only when searchSemester is set)
+  const { data: registeredCourses, isLoading, isError } = useQuery({
+    queryKey: ["registered-courses", session?.user?.studentId, searchSemester],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/registered-courses?studentId=${session?.user?.studentId}&semester=${searchSemester}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to fetch registered courses");
+      }
+      return json.data || [];
+    },
+    enabled: !!searchSemester && !!session?.user?.studentId,
+  });
 
   const handleSearch = () => {
-    setFiltered(
-      registeredCourses.filter((c) => c.semester === selectedSemester)
-    );
+    if (selectedSemester) {
+      setSearchSemester(selectedSemester);
+    }
+  };
+
+  const handleSemesterChange = (value) => {
+    setSelectedSemester(value);
+    setSearchSemester(null); // Reset search results when semester changes
   };
 
   return (
@@ -87,7 +65,7 @@ export default function RegisteredCourse() {
         <CardContent>
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
             <div className="w-full sm:w-64">
-              <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+              <Select value={selectedSemester} onValueChange={handleSemesterChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Semester" />
                 </SelectTrigger>
@@ -100,7 +78,12 @@ export default function RegisteredCourse() {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="diu" className="w-full sm:w-auto" onClick={handleSearch}>
+            <Button
+              variant="diu"
+              className="w-full sm:w-auto"
+              onClick={handleSearch}
+              disabled={!selectedSemester}
+            >
               Search
             </Button>
           </div>
@@ -113,25 +96,43 @@ export default function RegisteredCourse() {
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Course Title</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Credit</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Section</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Teacher</th>
+
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                {filtered.length === 0 ? (
+                {!searchSemester ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500 dark:text-gray-300">
+                      Please select a semester and click Search to view registered courses.
+                    </td>
+                  </tr>
+                ) : isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500 dark:text-gray-300">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-red-500 dark:text-red-400">
+                      Error loading courses. Please try again.
+                    </td>
+                  </tr>
+                ) : !registeredCourses || registeredCourses.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-6 text-center text-gray-500 dark:text-gray-300">
                       No courses found for this semester.
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((course, idx) => (
-                    <tr key={course.code + course.section}>
+                  registeredCourses.map((course, idx) => (
+                    <tr key={course.code + course.section + idx}>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{idx + 1}</td>
                       <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">{course.code}</td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{course.title}</td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{course.credit}</td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{course.section}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">{course.teacher}</td>
+
                     </tr>
                   ))
                 )}

@@ -9,8 +9,6 @@ const registerCourseSchema = new mongoose.Schema(
             {
                 course: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
                 section: { type: mongoose.Schema.Types.ObjectId, ref: "Section", required: true },
-                teacher: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" },
-                status: { type: String, enum: ["Enrolled", "Completed"], default: "Enrolled" },
             },
         ],
         registeredAt: { type: Date, default: Date.now },
