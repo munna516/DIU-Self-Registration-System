@@ -21,64 +21,22 @@ import {
 import { Label } from "@/components/ui/label";
 import { useSession } from "next-auth/react";
 import { getStudentTerm } from "@/utils/studentTerm";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
-const courses = [
-  {
-    code: "CSE112",
-    title: "Introduction To Computer Science",
-    credit: 3,
-    pre: [],
-    isLab: false,
-  },
-  {
-    code: "CSE113",
-    title: "Programming Fundamentals",
-    credit: 3,
-    pre: [],
-    isLab: false,
-  },
-  {
-    code: "CSE114",
-    title: "Data Structures",
-    credit: 3,
-    pre: [],
-    isLab: false,
-  },
-  {
-    code: "CSE115",
-    title: "Algorithms",
-    credit: 3,
-    pre: ["CSE114"],
-    isLab: false,
-  },
-  {
-    code: "CSE116",
-    title: "Database Systems",
-    credit: 3,
-    pre: [],
-    isLab: false,
-  },
-  {
-    code: "CSE112L",
-    title: "Introduction To Computer Science Lab",
-    credit: 1,
-    pre: [],
-    isLab: true,
-  },
-  {
-    code: "CSE113L",
-    title: "Programming Fundamentals Lab",
-    credit: 1,
-    pre: [],
-    isLab: true,
-  },
-];
-const sections = ["A", "B", "C", "D"];
 const labSubsections = ["1", "2"]; // For A1, A2, etc.
 const retakeSections = ["Retake-A", "Retake-B"];
+
+// Helper function to generate section letters based on count
+const generateSections = (count) => {
+  const sections = [];
+  for (let i = 0; i < count; i++) {
+    sections.push(String.fromCharCode(65 + i)); // 65 is 'A' in ASCII
+  }
+  return sections;
+};
 
 export default function EnrollCourse() {
   const { data: session } = useSession();
@@ -87,10 +45,9 @@ export default function EnrollCourse() {
   const [selectedSection, setSelectedSection] = useState(""); // Section for regular courses
   const [selectedLabSubsection, setSelectedLabSubsection] = useState(""); // Subsection for lab courses
   const [pendingCourses, setPendingCourses] = useState([]); // {code, title, credit, section, isLab, isPrereq}
-  const [enrolledCourses, setEnrolledCourses] = useState([]); // {code, title, credit, section}
   const [commonSection, setCommonSection] = useState(""); // Common section for all regular courses
-  const [isEnrolled, setIsEnrolled] = useState(false); // Track if enrollment is complete
   const [showEvaluationToast, setShowEvaluationToast] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: registrationSchedule, isLoading: isLoadingSchedule } = useQuery(
     {
@@ -122,6 +79,73 @@ export default function EnrollCourse() {
       },
       enabled: !!session?.user?._id,
     });
+
+  // Fetch courses from API
+  const { data: coursesData, isLoading: isLoadingCourses } = useQuery({
+    queryKey: ["enroll-courses", session?.user?.department, session?.user?.studentId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/enroll-courses?department=${session?.user?.department}&studentId=${session?.user?.studentId}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch courses");
+      return json.data;
+    },
+    enabled: !!session?.user?.department && !!session?.user?.studentId,
+  });
+
+  // Transform courses data to match the expected format
+  const courses = coursesData
+    ? coursesData.map((course) => ({
+        code: course.courseCode,
+        title: course.courseTitle,
+        credit: course.credit,
+        pre: course.prerequisite || [],
+        isLab: course.courseType === "Lab",
+      }))
+    : [];
+
+  // Fetch sections from API
+  const { data: sectionData, isLoading: isLoadingSections } = useQuery({
+    queryKey: ["sections", session?.user?.department, session?.user?.studentId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch sections");
+      return json.data;
+    },
+    enabled: !!session?.user?.department && !!session?.user?.studentId,
+  });
+
+  // Generate sections array based on count from database
+  const sections = sectionData?.count
+    ? generateSections(sectionData.count)
+    : [];
+
+  // Fetch enrolled courses for current semester
+  const { data: enrolledCoursesData, isLoading: isLoadingEnrolledCourses, refetch: refetchEnrolledCourses } = useQuery({
+    queryKey: ["registered-courses", session?.user?.studentId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/registered-courses?studentId=${session?.user?.studentId}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch enrolled courses");
+      return json.data;
+    },
+    enabled: !!session?.user?.studentId,
+  });
+
+  // Use enrolledCoursesData for checking enrolled courses
+  const enrolledCourses = enrolledCoursesData || [];
+  
+  // Check if student has enrolled courses (hide enrollment form if they have)
+  const hasEnrolledCourses = enrolledCourses.length > 0;
 
   // Check if registration is currently open (between start and end date/time)
   const isRegistrationOpen = () => {
@@ -354,6 +378,48 @@ export default function EnrollCourse() {
     }
   };
 
+  // Mutation for enrolling courses
+  const enrollMutation = useMutation({
+    mutationFn: async (coursesToEnroll) => {
+      const res = await fetch("/api/student/enroll-courses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId: session?.user?.studentId,
+          department: session?.user?.department,
+          courses: coursesToEnroll,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to enroll courses");
+      }
+      return json;
+    },
+    onSuccess: async (data) => {
+      // Show success toast
+      toast.success(`Successfully enrolled in ${pendingCourses.length} course(s)!`);
+      
+      // Clear pending courses and reset
+      setPendingCourses([]);
+      setSelectedSection("");
+      setSelectedLabSubsection("");
+      setCommonSection("");
+      
+      // Invalidate and refetch queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ["sections"] });
+      await queryClient.invalidateQueries({ queryKey: ["registered-courses"] });
+      
+      // Fetch enrolled courses after successful enrollment
+      await refetchEnrolledCourses();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to enroll courses. Please try again.");
+    },
+  });
+
   // Enroll all courses
   const handleEnrollAll = () => {
     if (pendingCourses.length === 0) {
@@ -368,32 +434,14 @@ export default function EnrollCourse() {
       return;
     }
 
-    // Enroll all pending courses (they already have sections assigned)
+    // Prepare courses for enrollment
     const coursesToEnroll = pendingCourses.map((pc) => ({
       code: pc.code,
-      title: pc.title,
-      credit: pc.credit,
       section: pc.section,
     }));
 
-    console.log("Enrolling courses:", coursesToEnroll);
-    console.log("Total courses to enroll:", coursesToEnroll.length);
-
-    // Use functional update to ensure we get the latest state
-    setEnrolledCourses((prev) => {
-      const updated = [...prev, ...coursesToEnroll];
-      console.log("Updated enrolled courses:", updated);
-      return updated;
-    });
-
-    // Clear pending courses and reset
-    setPendingCourses([]);
-    setSelectedSection("");
-    setSelectedLabSubsection("");
-    setCommonSection("");
-    setIsEnrolled(true); // Mark enrollment as complete
-
-    alert(`Successfully enrolled in ${coursesToEnroll.length} course(s)!`);
+    // Call the mutation
+    enrollMutation.mutate(coursesToEnroll);
   };
 
   const handleEvaluationToastOK = () => {
@@ -448,15 +496,83 @@ export default function EnrollCourse() {
 
       <Card className="p-6 dark:bg-slate-800">
         <CardHeader className="pb-4">
-          {
-            !isRegistrationOpen() ? "" : <CardTitle className="text-xl font-bold">Enroll Course</CardTitle>
-          }
+          {hasEnrolledCourses ? (
+            <CardTitle className="text-xl font-bold">Enrolled Courses</CardTitle>
+          ) : (
+            <CardTitle className="text-xl font-bold">Enroll Course</CardTitle>
+          )}
         </CardHeader>
         <CardContent>
-          {isLoadingSchedule ? (
+          {isLoadingSchedule || isLoadingCourses || isLoadingSections || isLoadingEnrolledCourses ? (
             <div className="text-center py-8">
               <div className="text-lg font-semibold text-blue-600 dark:text-gray-400">
                 Loading...
+              </div>
+            </div>
+          ) : hasEnrolledCourses ? (
+            /* Show only enrolled courses table when student has enrolled */
+            <div>
+              {!isRegistrationOpen() && (
+                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="text-blue-700 dark:text-blue-400 font-semibold">
+                    Registration is currently closed. You have already enrolled in the following courses:
+                  </div>
+                </div>
+              )}
+              <div className="text-blue-700 dark:text-blue-400 font-semibold mb-2">
+              
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Code
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Title
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Credit
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Section
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Type
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                    {enrolledCoursesData.map((c, index) => (
+                      <tr key={c.code + c.section + index}>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.code}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.title}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.credit}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 font-semibold">
+                          {c.section}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.courseType === "Lab" ? (
+                            <span className="text-purple-600 dark:text-purple-400">
+                              Lab
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 dark:text-blue-400">
+                              Theory
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : !isRegistrationOpen() ? (
@@ -479,8 +595,8 @@ export default function EnrollCourse() {
             </div>
           ) : (
             <>
-              {/* Show course selection only if not enrolled */}
-              {!isEnrolled && (
+              {/* Show course selection only if not enrolled and registration is open */}
+              {isRegistrationOpen() && (
                 <>
                   {/* 1st row: Department & Level */}
                   <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -538,18 +654,25 @@ export default function EnrollCourse() {
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select Course" />
                           </SelectTrigger>
-                          <SelectContent>
-                            {courses.map((c) => (
-                              <SelectItem
-                                key={c.code}
-                                value={`${c.code} - ${c.title}`}
-                                disabled={allDisabledCodes.includes(c.code)}
-                              >
-                                {c.code} - {c.title}
-                                {coursesWithUnmetPrereqs.includes(c.code) &&
-                                  " (Prerequisites Required)"}
+                          <SelectContent className="cursor-pointer">
+                            {courses.length > 0 ? (
+                              courses.map((c) => (
+                                <SelectItem
+                                  key={c.code}
+                                  value={`${c.code} - ${c.title}`}
+                                  disabled={allDisabledCodes.includes(c.code)}
+                                  className="cursor-pointer"
+                                >
+                                  {c.code} - {c.title}
+                                  {coursesWithUnmetPrereqs.includes(c.code) &&
+                                    " (Prerequisites Required)"}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-courses" disabled>
+                                No courses available
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -579,17 +702,24 @@ export default function EnrollCourse() {
                                 <SelectValue placeholder="Select Section" />
                               </SelectTrigger>
                               <SelectContent>
-                                {sections.map((s) => (
-                                  <SelectItem
-                                    key={s}
-                                    value={s}
-                                    disabled={
-                                      commonSection && s !== commonSection
-                                    }
-                                  >
-                                    {s}
+                                {sections.length > 0 ? (
+                                  sections.map((s) => (
+                                    <SelectItem
+                                      key={s}
+                                      value={s}
+                                      disabled={
+                                        commonSection && s !== commonSection
+                                      }
+                                      className="cursor-pointer"
+                                    >
+                                      {s}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="no-sections" disabled>
+                                    No sections available
                                   </SelectItem>
-                                ))}
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -719,7 +849,7 @@ export default function EnrollCourse() {
                   )}
 
                   {/* Enroll Button - Only enable when all available courses (without prerequisites) are added */}
-                  {pendingCourses.length > 0 && !isEnrolled && (
+                  {pendingCourses.length > 0 && !hasEnrolledCourses && (
                     <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       <div className="text-green-700 dark:text-green-400 font-semibold mb-3">
                         {allCoursesAdded
@@ -734,62 +864,19 @@ export default function EnrollCourse() {
                           className="whitespace-nowrap"
                           onClick={handleEnrollAll}
                           disabled={
-                            !allCoursesAdded || availableCourses.length === 0
+                            !allCoursesAdded || 
+                            availableCourses.length === 0 ||
+                            enrollMutation.isPending
                           }
                         >
-                          Enroll All Courses ({pendingCourses.length})
+                          {enrollMutation.isPending
+                            ? "Enrolling..."
+                            : `Enroll All Courses (${pendingCourses.length})`}
                         </Button>
                       </div>
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Enrolled Courses Table */}
-              {isEnrolled && enrolledCourses.length > 0 && (
-                <div className="mt-8">
-                  <div className="text-blue-700 dark:text-blue-400 font-semibold mb-2">
-                    Enrolled Courses:
-                  </div>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-100 dark:bg-gray-700">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                            Course Code
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                            Course Title
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                            Credit
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                            Section
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                        {enrolledCourses.map((c) => (
-                          <tr key={c.code + c.section}>
-                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                              {c.code}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                              {c.title}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                              {c.credit}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                              {c.section}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               )}
             </>
           )}

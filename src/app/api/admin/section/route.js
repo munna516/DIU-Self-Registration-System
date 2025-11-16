@@ -110,10 +110,22 @@ export async function POST(request) {
       );
     }
 
+    // Initialize sections array based on count
+    const sections = [];
+    for (let i = 0; i < count; i++) {
+      const sectionLetter = String.fromCharCode(65 + i); // A, B, C, etc.
+      sections.push({
+        name: sectionLetter,
+        capacity: 50,
+        students: [],
+      });
+    }
+
     const sectionData = {
       department,
       level,
       count: Number(count),
+      sections: sections,
     };
 
     const created = await Section.create(sectionData);
