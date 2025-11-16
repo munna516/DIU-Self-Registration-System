@@ -34,8 +34,30 @@ export async function POST(request) {
   try {
     await connect();
     const body = await request.json();
-    const { semester, year } = body || {};
+    const { semester, year, evalutionIsOpen } = body || {};
 
+    // If only evalutionIsOpen is provided, update only that field
+    if (evalutionIsOpen !== undefined && semester === undefined && year === undefined) {
+      const existingSemester = await Semester.findOne();
+      if (!existingSemester) {
+        return NextResponse.json(
+          { success: false, message: "Semester record not found. Please set semester first." },
+          { status: 404 }
+        );
+      }
+      existingSemester.evalutionIsOpen = Boolean(evalutionIsOpen);
+      await existingSemester.save();
+      return NextResponse.json(
+        { 
+          success: true, 
+          data: existingSemester, 
+          message: "Evaluation status updated successfully" 
+        },
+        { status: 200 }
+      );
+    }
+
+    // Otherwise, update semester and year (preserve evalutionIsOpen if not provided)
     if (!semester || !year) {
       return NextResponse.json(
         { success: false, message: "Semester and year are required" },
@@ -72,11 +94,17 @@ export async function POST(request) {
       updatedSemester = await Semester.create({
         semester,
         year: yearNum,
+        evalutionIsOpen: evalutionIsOpen !== undefined ? Boolean(evalutionIsOpen) : false,
       });
     } else {
-      // Update existing
+      // Update existing - preserve evalutionIsOpen if not provided
       existingSemester.semester = semester;
       existingSemester.year = yearNum;
+      // Only update evalutionIsOpen if explicitly provided
+      if (evalutionIsOpen !== undefined) {
+        existingSemester.evalutionIsOpen = Boolean(evalutionIsOpen);
+      }
+      // Otherwise, keep the existing value
       await existingSemester.save();
       updatedSemester = existingSemester;
     }

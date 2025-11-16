@@ -14,6 +14,11 @@ const semesterSchema = new Schema(
       min: 2020,
       max: 2100,
     },
+    evalutionIsOpen: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
   },
   { timestamps: true }
 );
