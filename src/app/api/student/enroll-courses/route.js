@@ -13,7 +13,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const department = searchParams.get("department");
     const studentId = searchParams.get("studentId");
-
     if (!department) {
       return NextResponse.json(
         { success: false, message: "Department is required" },
@@ -28,8 +27,12 @@ export async function GET(request) {
       );
     }
 
+    const semester = await Semester.findOne();
     // Calculate student level using getStudentTerm function
-    const level = getStudentTerm(studentId);
+    const level = getStudentTerm(studentId, {
+      semester: semester.semester,
+      year: semester.year,
+    });
 
     // Fetch courses based on department and level
     const courses = await Course.find({
@@ -74,7 +77,11 @@ export async function POST(request) {
       );
     }
 
-    if (!coursesToEnroll || !Array.isArray(coursesToEnroll) || coursesToEnroll.length === 0) {
+    if (
+      !coursesToEnroll ||
+      !Array.isArray(coursesToEnroll) ||
+      coursesToEnroll.length === 0
+    ) {
       return NextResponse.json(
         { success: false, message: "Courses array is required" },
         { status: 400 }
@@ -143,12 +150,16 @@ export async function POST(request) {
 
     // Process each course enrollment
     const enrollmentData = [];
-    
+
     for (const courseEnroll of coursesToEnroll) {
       const { code, section: sectionName } = courseEnroll;
 
       // Find the course
-      const course = await Course.findOne({ courseCode: code, department, level });
+      const course = await Course.findOne({
+        courseCode: code,
+        department,
+        level,
+      });
       if (!course) {
         return NextResponse.json(
           { success: false, message: `Course ${code} not found` },
@@ -164,7 +175,7 @@ export async function POST(request) {
 
       // Find the section object in the sections array
       let sectionObj = sectionDoc.sections.find((s) => s.name === sectionName);
-      
+
       // If section doesn't exist, create it
       if (!sectionObj) {
         // Check if we've reached maximum sections (26 letters A-Z)
@@ -174,14 +185,14 @@ export async function POST(request) {
             { status: 400 }
           );
         }
-        
+
         // Create new section
         sectionDoc.sections.push({
           name: sectionName,
           capacity: 50,
           students: [],
         });
-        
+
         // Update count if this is a new base section (A, B, C, etc.)
         // Check if sectionName is a single letter (base section)
         if (sectionName.length === 1 && /^[A-Z]$/.test(sectionName)) {
@@ -190,7 +201,7 @@ export async function POST(request) {
             sectionDoc.count = sectionIndex + 1;
           }
         }
-        
+
         // Get the newly created section
         sectionObj = sectionDoc.sections[sectionDoc.sections.length - 1];
       }
@@ -201,15 +212,20 @@ export async function POST(request) {
         const newSectionIndex = sectionDoc.count;
         if (newSectionIndex >= 26) {
           return NextResponse.json(
-            { success: false, message: `Section ${sectionName} is full and maximum sections reached` },
+            {
+              success: false,
+              message: `Section ${sectionName} is full and maximum sections reached`,
+            },
             { status: 400 }
           );
         }
-        
+
         const newSectionName = getSectionLetter(newSectionIndex);
-        
+
         // Check if new section already exists
-        let newSectionObj = sectionDoc.sections.find((s) => s.name === newSectionName);
+        let newSectionObj = sectionDoc.sections.find(
+          (s) => s.name === newSectionName
+        );
         if (!newSectionObj) {
           // Create new section
           sectionDoc.sections.push({
@@ -220,7 +236,7 @@ export async function POST(request) {
           sectionDoc.count += 1;
           newSectionObj = sectionDoc.sections[sectionDoc.sections.length - 1];
         }
-        
+
         // Use the new section for enrollment
         sectionObj = newSectionObj;
       }
@@ -232,8 +248,10 @@ export async function POST(request) {
         const nextSectionIndex = sectionDoc.count;
         if (nextSectionIndex < 26) {
           const nextSectionName = getSectionLetter(nextSectionIndex);
-          const nextSectionExists = sectionDoc.sections.find((s) => s.name === nextSectionName);
-          
+          const nextSectionExists = sectionDoc.sections.find(
+            (s) => s.name === nextSectionName
+          );
+
           if (!nextSectionExists) {
             // Create new section for future enrollments
             sectionDoc.sections.push({
@@ -251,7 +269,7 @@ export async function POST(request) {
       const isInSection = sectionObj.students.some(
         (id) => id.toString() === student._id.toString()
       );
-      
+
       if (!isInSection) {
         // Add student to section's students array if not already there
         sectionObj.students.push(student._id);
@@ -269,20 +287,26 @@ export async function POST(request) {
     // Check if we have any enrollments to process
     if (enrollmentData.length === 0) {
       return NextResponse.json(
-        { success: false, message: "No new courses to enroll. You may already be enrolled in these courses." },
+        {
+          success: false,
+          message:
+            "No new courses to enroll. You may already be enrolled in these courses.",
+        },
         { status: 400 }
       );
     }
 
     // Mark sections array as modified to ensure Mongoose saves the changes
-    sectionDoc.markModified('sections');
+    sectionDoc.markModified("sections");
     // Save updated section document to get _ids for subdocuments
     await sectionDoc.save();
 
     // Now get the section object _ids after saving
     const finalEnrollmentData = enrollmentData.map((item) => {
       // Find the section object again after save to get its _id
-      const sectionObj = sectionDoc.sections.find((s) => s.name === item.sectionName);
+      const sectionObj = sectionDoc.sections.find(
+        (s) => s.name === item.sectionName
+      );
       return {
         course: item.course,
         section: sectionObj._id, // Use the individual section object's _id
@@ -304,7 +328,7 @@ export async function POST(request) {
         courses: finalEnrollmentData, // All courses with individual section object _ids
       });
       await registerCourse.save();
-      
+
       // Update student's registeredCourses array
       // Now registeredCourses is an array of objects: [{ type: ObjectId, semester: String }, ...]
       student.registeredCourses.push({
@@ -330,4 +354,3 @@ export async function POST(request) {
     );
   }
 }
-

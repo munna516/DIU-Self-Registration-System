@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/mongoose";
 import Section from "@/models/Section";
 import { getStudentTerm } from "@/utils/studentTerm";
+import Semester from "@/models/Semester";
 
 export async function GET(request) {
   try {
@@ -24,8 +25,12 @@ export async function GET(request) {
       );
     }
 
+    const semester = await Semester.findOne();
     // Calculate student level using getStudentTerm function
-    const level = getStudentTerm(studentId);
+    const level = getStudentTerm(studentId, {
+      semester: semester.semester,
+      year: semester.year,
+    });
 
     // Fetch section based on department and level
     const section = await Section.findOne({
@@ -58,4 +63,3 @@ export async function GET(request) {
     );
   }
 }
-
