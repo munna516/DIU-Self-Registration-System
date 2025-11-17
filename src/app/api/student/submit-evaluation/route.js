@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/mongoose";
 import Student from "@/models/Student";
 import Evaluation from "@/models/Evaluation";
-import Teacher from "@/models/Teacher";
 import Course from "@/models/Course";
 
 // Submit teaching evaluation
@@ -10,7 +9,7 @@ export async function POST(request) {
   try {
     await connect();
     const body = await request.json();
-    const { studentId, semester, courseId, sectionId, answers } = body;
+    const { studentId, semester, courseId,  answers } = body;
 
     if (!studentId || !semester || !courseId || !answers) {
       return NextResponse.json(
@@ -37,19 +36,7 @@ export async function POST(request) {
       );
     }
 
-    // For now, we'll need to get teacher info from somewhere
-    // Since teacher is not linked to course/section in current schema,
-    // we'll need to find a teacher from the department
-    // For now, we'll set it to null or find the first teacher in the department
-    const teacher = await Teacher.findOne({ department: student.department });
-    if (!teacher) {
-      return NextResponse.json(
-        { success: false, message: "Teacher not found for this course" },
-        { status: 404 }
-      );
-    }
-
-    // Check if evaluation already exists for this student, semester, and course
+    // Check if evaluation already exists for this student and semester
     let evaluation = await Evaluation.findOne({
       student: student._id,
       semester: semester,
@@ -63,14 +50,16 @@ export async function POST(request) {
 
       if (existingCourseEvaluation) {
         return NextResponse.json(
-          { success: false, message: "Evaluation already submitted for this course" },
+          {
+            success: false,
+            message: "Evaluation already submitted for this course",
+          },
           { status: 400 }
         );
       }
 
-      // Add new evaluation to existing document
+      // Push new course evaluation to existing document
       evaluation.evaluations.push({
-        teacher: teacher._id,
         course: courseId,
         answers: answers.map((answer, index) => ({
           questionNo: index + 1,
@@ -85,7 +74,6 @@ export async function POST(request) {
         semester: semester,
         evaluations: [
           {
-            teacher: teacher._id,
             course: courseId,
             answers: answers.map((answer, index) => ({
               questionNo: index + 1,
@@ -97,21 +85,22 @@ export async function POST(request) {
       });
     }
 
+    // Save the evaluation
     await evaluation.save();
 
     // Update student's evaluations array
-    const evaluationRef = {
-      type: evaluation._id,
-      semester: semester,
-    };
-
-    // Check if this evaluation reference already exists
+    // Check if this evaluation reference already exists for this semester
     const existingEvaluationRef = student.evaluations.find(
-      (evalRef) => evalRef.type.toString() === evaluation._id.toString() && evalRef.semester === semester
+      (evalRef) =>
+        evalRef.type.toString() === evaluation._id.toString() &&
+        evalRef.semester === semester
     );
 
     if (!existingEvaluationRef) {
-      student.evaluations.push(evaluationRef);
+      student.evaluations.push({
+        type: evaluation._id,
+        semester: semester,
+      });
       await student.save();
     }
 
@@ -131,4 +120,3 @@ export async function POST(request) {
     );
   }
 }
-
