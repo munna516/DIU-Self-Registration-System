@@ -36,8 +36,8 @@ const generateSections = (count) => {
   return sections;
 };
 
-// Lab subsections (1, 2, 3, etc.)
-const labSubsections = ["1", "2", "3", "4", "5"];
+// Lab subsections - only 2 per section
+const labSubsections = ["1", "2"];
 
 export default function EnrollCourse() {
   const { data: session } = useSession();
@@ -454,25 +454,31 @@ export default function EnrollCourse() {
 
     // Validate section selection
     if (selectedCourse.isLab) {
-      // For lab courses, need both section and subsection
-      if (!selectedSection || !selectedLabSubsection) {
-        alert("Please select both section and subsection for lab course.");
+      // For lab courses, need subsection (which includes section, e.g., "A1", "B2")
+      if (!selectedLabSubsection) {
+        alert("Please select a subsection for lab course.");
         return;
       }
+
+      // Extract section from subsection (e.g., "A1" -> "A")
+      const subsectionSection = selectedLabSubsection.charAt(0);
 
       // For retake courses, don't enforce commonSection restriction
       if (!isRetakeCourse) {
         // If regular courses are already added, lab must use the same base section
-        if (commonSection && selectedSection !== commonSection) {
+        if (commonSection && subsectionSection !== commonSection) {
           alert(
-            `Lab courses must be in subsections of section ${commonSection}. Please select section ${commonSection}.`
+            `Lab courses must be in subsections of section ${commonSection}. Please select a subsection of section ${commonSection}.`
           );
           return;
         }
 
-        // If this is the first course (lab course), set common section
+        // If this is the first course (lab course), set common section from subsection
         if (!commonSection && pendingCourses.length === 0) {
-          setCommonSection(selectedSection);
+          setCommonSection(subsectionSection);
+        } else if (!commonSection) {
+          // If commonSection is not set but there are pending courses, set it from subsection
+          setCommonSection(subsectionSection);
         }
       }
     } else {
@@ -516,9 +522,13 @@ export default function EnrollCourse() {
     }
 
     // Build section string
-    let finalSection = selectedSection;
+    let finalSection;
     if (selectedCourse.isLab) {
-      finalSection = `${selectedSection}${selectedLabSubsection}`; // e.g., A1, A2
+      // For lab courses, use the subsection directly (e.g., "A1", "B2")
+      finalSection = selectedLabSubsection;
+    } else {
+      // For regular courses, use the selected section
+      finalSection = selectedSection;
     }
 
     // Add to pending courses
@@ -880,7 +890,7 @@ export default function EnrollCourse() {
                         )}
 
                       {/* Section Selection */}
-                      {selectedCourse && (
+                      {selectedCourse && !selectedCourse.isLab && (
                         <div className="flex gap-2">
                           <div className="flex-1">
                             <Label className="text-sm font-semibold">
@@ -892,9 +902,7 @@ export default function EnrollCourse() {
                                 ({sectionType === "retake" ? "Retake" : "Regular"})
                               </span>
                               {commonSection && sectionType !== "retake"
-                                ? selectedCourse.isLab
-                                  ? ` - Must be ${commonSection} for lab subsections`
-                                  : ` - Must be ${commonSection}`
+                                ? ` - Must be ${commonSection}`
                                 : sectionType === "retake"
                                   ? " - Any section available"
                                   : ""}
@@ -903,9 +911,6 @@ export default function EnrollCourse() {
                               value={selectedSection}
                               onValueChange={(value) => {
                                 setSelectedSection(value);
-                                if (selectedCourse.isLab) {
-                                  setSelectedLabSubsection(""); // Reset subsection when section changes
-                                }
                               }}
                             >
                               <SelectTrigger className="w-full">
@@ -937,12 +942,26 @@ export default function EnrollCourse() {
                               </SelectContent>
                             </Select>
                           </div>
+                        </div>
+                      )}
 
-                          {/* Lab Subsection Selection */}
-                          {selectedCourse.isLab && selectedSection && (
+                      {/* Lab Subsection Selection */}
+                      {selectedCourse && selectedCourse.isLab && (
+                        <div className="flex gap-2">
                             <div className="flex-1">
                               <Label className="text-sm font-semibold">
-                                Select Subsection
+                                Select Subsection{" "}
+                                <span className={`text-xs font-normal ${sectionType === "retake"
+                                    ? "text-orange-600 dark:text-orange-400"
+                                    : "text-blue-600 dark:text-blue-400"
+                                  }`}>
+                                  ({sectionType === "retake" ? "Retake" : "Regular"})
+                                </span>
+                                {commonSection && sectionType !== "retake"
+                                  ? ` - Must be ${commonSection} subsections`
+                                  : sectionType === "retake"
+                                    ? " - Any subsection available"
+                                    : ""}
                               </Label>
                               <Select
                                 value={selectedLabSubsection}
@@ -952,17 +971,41 @@ export default function EnrollCourse() {
                                   <SelectValue placeholder="Select Subsection" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {labSubsections.map((sub) => (
-                                    <SelectItem key={sub} value={sub}>
-                                      {selectedSection}
-                                      {sub}
+                                  {sections.length > 0 ? (
+                                    sections.flatMap((section) =>
+                                      labSubsections.map((sub) => {
+                                        const subsectionValue = `${section}${sub}`;
+                                        // For retake courses, show all subsections
+                                        // For regular courses, only show subsections of commonSection if set
+                                        const isDisabled = sectionType !== "retake" && 
+                                          commonSection && 
+                                          section !== commonSection;
+                                        
+                                        return (
+                                          <SelectItem
+                                            key={subsectionValue}
+                                            value={subsectionValue}
+                                            disabled={isDisabled}
+                                            className="cursor-pointer"
+                                          >
+                                            {subsectionValue} (25)
+                                          </SelectItem>
+                                        );
+                                      })
+                                    )
+                                  ) : (
+                                    <SelectItem value="no-subsections" disabled>
+                                      No subsections available
                                     </SelectItem>
-                                  ))}
+                                  )}
                                 </SelectContent>
                               </Select>
-                            </div>
-                          )}
+                          </div>
+                        </div>
+                      )}
 
+                      {/* Add Button Section */}
+                      {selectedCourse && (
                           <div className="flex items-end gap-2">
                             {/* Show Check Pre-requisite button if course has prerequisites and not yet checked or completed */}
                             {selectedCourse &&
@@ -995,7 +1038,7 @@ export default function EnrollCourse() {
                               onClick={handleAddCourse}
                               disabled={
                                 !selectedCourse ||
-                                !selectedSection ||
+                                (!selectedCourse.isLab && !selectedSection) ||
                                 (selectedCourse.isLab && !selectedLabSubsection) ||
                                 (selectedCourse.pre.length > 0 &&
                                   prerequisiteCheckStatus !== "completed")
@@ -1005,7 +1048,6 @@ export default function EnrollCourse() {
                               Add
                             </Button>
                           </div>
-                        </div>
                       )}
                     </div>
                   </div>
