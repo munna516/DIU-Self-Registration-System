@@ -26,7 +26,7 @@ export async function POST(request) {
   try {
     await connect();
     const body = await request.json();
-    const { department, level, count } = body || {};
+    const { department, level, count, sectionType } = body || {};
 
     if (!department) {
       return NextResponse.json(
@@ -45,6 +45,13 @@ export async function POST(request) {
     if (!count || count < 1 || count > 30) {
       return NextResponse.json(
         { success: false, message: "Count must be between 1 and 30" },
+        { status: 400 }
+      );
+    }
+
+    if (!sectionType || !["regular", "retake"].includes(sectionType)) {
+      return NextResponse.json(
+        { success: false, message: "Section Type is required and must be 'regular' or 'retake'" },
         { status: 400 }
       );
     }
@@ -98,13 +105,13 @@ export async function POST(request) {
       );
     }
 
-    // Check if section already exists for this department and level
-    const existing = await Section.findOne({ department, level });
+    // Check if section already exists for this department, level, and sectionType
+    const existing = await Section.findOne({ department, level, sectionType });
     if (existing) {
       return NextResponse.json(
         {
           success: false,
-          message: "Section already exists for this department and level",
+          message: "Section already exists for this department, level, and section type",
         },
         { status: 400 }
       );
@@ -125,6 +132,7 @@ export async function POST(request) {
       department,
       level,
       count: Number(count),
+      sectionType,
       sections: sections,
     };
 
@@ -155,7 +163,7 @@ export async function PUT(request) {
   try {
     await connect();
     const body = await request.json();
-    const { id, department, level, count } = body || {};
+    const { id, department, level, count, sectionType } = body || {};
 
     if (!id) {
       return NextResponse.json(
@@ -167,6 +175,13 @@ export async function PUT(request) {
     if (!count || count < 1 || count > 30) {
       return NextResponse.json(
         { success: false, message: "Count must be between 1 and 30" },
+        { status: 400 }
+      );
+    }
+
+    if (sectionType && !["regular", "retake"].includes(sectionType)) {
+      return NextResponse.json(
+        { success: false, message: "Section Type must be 'regular' or 'retake'" },
         { status: 400 }
       );
     }
@@ -234,9 +249,12 @@ export async function PUT(request) {
     if (level) {
       updateData.level = level;
     }
+    if (sectionType) {
+      updateData.sectionType = sectionType;
+    }
 
     // Check if updating would create a duplicate
-    if (department || level) {
+    if (department || level || sectionType) {
       const currentSection = await Section.findById(id);
       if (!currentSection) {
         return NextResponse.json(
@@ -247,10 +265,12 @@ export async function PUT(request) {
 
       const checkDepartment = department || currentSection.department;
       const checkLevel = level || currentSection.level;
+      const checkSectionType = sectionType || currentSection.sectionType;
 
       const existing = await Section.findOne({
         department: checkDepartment,
         level: checkLevel,
+        sectionType: checkSectionType,
         _id: { $ne: id },
       });
 
@@ -258,7 +278,7 @@ export async function PUT(request) {
         return NextResponse.json(
           {
             success: false,
-            message: "Section already exists for this department and level",
+            message: "Section already exists for this department, level, and section type",
           },
           { status: 400 }
         );

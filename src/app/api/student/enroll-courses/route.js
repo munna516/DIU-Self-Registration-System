@@ -121,45 +121,65 @@ export async function POST(request) {
       ? existingRegisterCourse.courses.map((c) => c.course._id.toString())
       : [];
 
-    // Get or create Section document for this department and level
-    let sectionDoc = await Section.findOne({ department, level });
-    if (!sectionDoc) {
-      // Create Section document with initial sections based on a default count
-      // Default to 4 sections (A, B, C, D) if not specified
-      const defaultCount = 4;
-      const initialSections = [];
-      for (let i = 0; i < defaultCount; i++) {
-        const sectionLetter = String.fromCharCode(65 + i); // A, B, C, etc.
-        initialSections.push({
-          name: sectionLetter,
-          capacity: 50,
-          students: [],
+    // Helper function to get or create section document
+    const getSectionDoc = async (sectionType = "regular") => {
+      let sectionDoc = await Section.findOne({ 
+        department, 
+        level, 
+        sectionType 
+      });
+      
+      if (!sectionDoc) {
+        // Create Section document with initial sections based on a default count
+        // Default to 4 sections (A, B, C, D) if not specified
+        const defaultCount = 4;
+        const initialSections = [];
+        for (let i = 0; i < defaultCount; i++) {
+          const sectionLetter = String.fromCharCode(65 + i); // A, B, C, etc.
+          initialSections.push({
+            name: sectionLetter,
+            capacity: 50,
+            students: [],
+          });
+        }
+
+        sectionDoc = await Section.create({
+          department,
+          level,
+          sectionType,
+          count: defaultCount,
+          sections: initialSections,
         });
       }
-
-      sectionDoc = await Section.create({
-        department,
-        level,
-        count: defaultCount,
-        sections: initialSections,
-      });
-    }
+      
+      return sectionDoc;
+    };
 
     // Helper function to generate section letter from index
     const getSectionLetter = (index) => String.fromCharCode(65 + index); // A, B, C, etc.
 
     // Process each course enrollment
     const enrollmentData = [];
+    const modifiedSectionDocs = new Map(); // Track modified section documents
 
     for (const courseEnroll of coursesToEnroll) {
-      const { code, section: sectionName } = courseEnroll;
+      const { code, section: sectionName, isRetake } = courseEnroll;
 
-      // Find the course
-      const course = await Course.findOne({
+      // Find the course - first try current level, then try all levels (for retake courses from previous levels)
+      let course = await Course.findOne({
         courseCode: code,
         department,
         level,
       });
+      
+      // If not found in current level, search in all levels (for retake courses)
+      if (!course) {
+        course = await Course.findOne({
+          courseCode: code,
+          department,
+        });
+      }
+      
       if (!course) {
         return NextResponse.json(
           { success: false, message: `Course ${code} not found` },
@@ -171,6 +191,17 @@ export async function POST(request) {
       if (enrolledCourseIds.includes(course._id.toString())) {
         // Student already enrolled in this course, skip it
         continue;
+      }
+
+      // Get the appropriate section document based on sectionType (regular or retake)
+      const sectionType = isRetake ? "retake" : "regular";
+      const sectionDocKey = `${sectionType}`;
+      
+      // Get or retrieve section document from cache
+      let sectionDoc = modifiedSectionDocs.get(sectionDocKey);
+      if (!sectionDoc) {
+        sectionDoc = await getSectionDoc(sectionType);
+        modifiedSectionDocs.set(sectionDocKey, sectionDoc);
       }
 
       // Find the section object in the sections array
@@ -281,6 +312,7 @@ export async function POST(request) {
         course: course._id,
         sectionObj: sectionObj, // Store reference to get _id after save
         sectionName: sectionName, // Store name to find it after save
+        sectionType: sectionType, // Store section type to find correct section doc
       });
     }
 
@@ -296,13 +328,18 @@ export async function POST(request) {
       );
     }
 
-    // Mark sections array as modified to ensure Mongoose saves the changes
-    sectionDoc.markModified("sections");
-    // Save updated section document to get _ids for subdocuments
-    await sectionDoc.save();
+    // Mark sections array as modified and save all modified section documents
+    for (const [key, sectionDoc] of modifiedSectionDocs.entries()) {
+      sectionDoc.markModified("sections");
+      await sectionDoc.save();
+    }
 
     // Now get the section object _ids after saving
     const finalEnrollmentData = enrollmentData.map((item) => {
+      // Find the correct section document based on sectionType
+      const sectionDocKey = item.sectionType;
+      const sectionDoc = modifiedSectionDocs.get(sectionDocKey);
+      
       // Find the section object again after save to get its _id
       const sectionObj = sectionDoc.sections.find(
         (s) => s.name === item.sectionName
