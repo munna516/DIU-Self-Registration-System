@@ -10,6 +10,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const department = searchParams.get("department");
     const studentId = searchParams.get("studentId");
+    const sectionType = searchParams.get("sectionType") || "regular"; // Default to regular
 
     if (!department) {
       return NextResponse.json(
@@ -25,6 +26,14 @@ export async function GET(request) {
       );
     }
 
+    // Validate sectionType
+    if (sectionType && !["regular", "retake"].includes(sectionType)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid section type. Must be 'regular' or 'retake'" },
+        { status: 400 }
+      );
+    }
+
     const semester = await Semester.findOne();
     // Calculate student level using getStudentTerm function
     const level = getStudentTerm(studentId, {
@@ -32,17 +41,18 @@ export async function GET(request) {
       year: semester.year,
     });
 
-    // Fetch section based on department and level
+    // Fetch section based on department, level, and sectionType
     const section = await Section.findOne({
       department: department,
       level: level,
+      sectionType: sectionType,
     });
 
     if (!section) {
       return NextResponse.json(
         {
           success: false,
-          message: "No sections found for this department and level",
+          message: `No ${sectionType} sections found for this department and level`,
         },
         { status: 404 }
       );

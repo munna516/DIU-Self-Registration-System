@@ -16,6 +16,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
+import { Label } from "@/components/ui/label";
 
 const departments = [
   {
@@ -146,6 +147,7 @@ export default function CreateSection() {
     department: departments[0].value,
     level: levels[0].value,
     count: 1,
+    sectionType: "regular",
   });
   const [editSectionId, setEditSectionId] = useState(null);
 
@@ -241,6 +243,8 @@ export default function CreateSection() {
     if (!form.level) return "Level is required";
     if (!form.count || form.count < 1 || form.count > 30)
       return "Count must be between 1 and 30";
+    if (!form.sectionType || !["regular", "retake"].includes(form.sectionType))
+      return "Section Type is required";
     return null;
   };
 
@@ -255,6 +259,7 @@ export default function CreateSection() {
       department: form.department,
       level: form.level,
       count: Number(form.count),
+      sectionType: form.sectionType,
     };
 
     if (editSectionId) {
@@ -272,6 +277,7 @@ export default function CreateSection() {
       department: departments[0].value,
       level: levels[0].value,
       count: 1,
+      sectionType: "regular",
     });
     setEditSectionId(null);
   };
@@ -280,8 +286,9 @@ export default function CreateSection() {
     const s = filteredSections[idx];
     setForm({
       department: s.department || departments[0].value,
-      level: s.level || levels[0],
+      level: s.level || levels[0].value,
       count: s.count || 1,
+      sectionType: s.sectionType || "regular",
     });
     setEditSectionId(s._id || null);
     setDialogOpen(true);
@@ -350,6 +357,7 @@ export default function CreateSection() {
                 </DialogHeader>
                 <div className="space-y-4 mt-2">
                   <div>
+                    <Label>Department</Label>
                     <Select
                       value={form.department}
                       onValueChange={(v) => handleFormChange("department", v)}
@@ -367,37 +375,64 @@ export default function CreateSection() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex gap-4">
+                  <div>
+                    <Label>Section Type</Label>
                     <Select
-                      value={form.level}
-                      onValueChange={(v) => handleFormChange("level", v)}
-                      disabled={editSectionId !== null}
+                      value={form.sectionType}
+                      onValueChange={(v) => handleFormChange("sectionType", v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Level" />
+                        <SelectValue placeholder="Section Type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {levels.map((l) => (
-                          <SelectItem key={l.value} value={l.value}>
-                            {l.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="retake">Retake</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input
-                      placeholder="Count"
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={form.count}
-                      onChange={(e) =>
-                        handleFormChange(
-                          "count",
-                          Math.max(1, Math.min(30, Number(e.target.value)))
-                        )
-                      }
-                    />
                   </div>
+                  <div className="flex gap-4">
+                    <div className="w-full">
+
+
+                      <Label>Level</Label>
+
+                      <Select
+                        value={form.level}
+                        onValueChange={(v) => handleFormChange("level", v)}
+                        disabled={editSectionId !== null}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {levels.map((l) => (
+                            <SelectItem key={l.value} value={l.value}>
+                              {l.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="w-full">
+                      <Label>Count</Label>
+
+                      <Input
+                        placeholder="Count"
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={form.count}
+                        onChange={(e) =>
+                          handleFormChange(
+                            "count",
+                            Math.max(1, Math.min(30, Number(e.target.value)))
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
                 </div>
                 <DialogFooter className="mt-4 flex flex-col gap-2">
                   <div className="flex w-full gap-2">
@@ -443,6 +478,7 @@ export default function CreateSection() {
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Department</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Level</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Count</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Section Type</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Action</th>
                 </tr>
               </thead>
@@ -450,7 +486,7 @@ export default function CreateSection() {
                 {isLoading ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-6 text-center text-gray-500 dark:text-gray-300"
                     >
                       Loading...
@@ -459,7 +495,7 @@ export default function CreateSection() {
                 ) : isError ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-6 text-center text-red-500"
                     >
                       Failed to load sections
@@ -468,7 +504,7 @@ export default function CreateSection() {
                 ) : filteredSections.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-6 text-center text-gray-500 dark:text-gray-300"
                     >
                       No sections found.
@@ -488,6 +524,14 @@ export default function CreateSection() {
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         {section.count}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${section.sectionType === "regular"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          : "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                          }`}>
+                          {section.sectionType === "regular" ? "Regular" : "Retake"}
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
                         <div className="flex gap-2">

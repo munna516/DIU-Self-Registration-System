@@ -38,6 +38,8 @@ export async function GET(request) {
         );
       }
 
+
+
       // Check if evaluations array exists and has elements
       if (
         !student.evaluations ||
@@ -54,6 +56,7 @@ export async function GET(request) {
       // Now evaluations is an array of objects: [{ type: ObjectId, semester: String }, ...]
       const lastEvaluation =
         student.evaluations[student.evaluations.length - 1];
+
       // Check if last evaluation exists and has a semester field
       if (!lastEvaluation || !lastEvaluation.semester) {
         return NextResponse.json(
@@ -72,7 +75,6 @@ export async function GET(request) {
       const registeredCourseRef = student.registeredCourses.find(
         (regCourse) => regCourse.semester === lastEvaluationSemester
       );
-
       if (!registeredCourseRef) {
         // No registered courses found for this semester
         return NextResponse.json(
@@ -85,6 +87,7 @@ export async function GET(request) {
       const registerCourse = await RegisterCourse.findById(
         registeredCourseRef.type
       );
+
 
       if (!registerCourse || !registerCourse.courses) {
         // No courses found in RegisterCourse
@@ -113,7 +116,7 @@ export async function GET(request) {
 
       // Compare the counts
       const isComplete = numberOfRegisteredCourses === numberOfEvaluatedCourses;
-
+      
       return NextResponse.json(
         { success: true, data: isComplete },
         { status: 200 }

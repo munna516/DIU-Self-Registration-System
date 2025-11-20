@@ -21,6 +21,12 @@ const registerCourseSchema = new Schema(
           ref: "Section",
           required: true,
         },
+        status: {
+          type: String,
+          enum: ["enrolled", "completed", "failed"],
+          required: true,
+          default: "enrolled",
+        },
       },
     ],
     registeredAt: { type: Date, default: Date.now },
