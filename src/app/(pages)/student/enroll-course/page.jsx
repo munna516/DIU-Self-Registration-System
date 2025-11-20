@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,9 @@ const generateSections = (count) => {
   return sections;
 };
 
+// Lab subsections (1, 2, 3, etc.)
+const labSubsections = ["1", "2", "3", "4", "5"];
+
 export default function EnrollCourse() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -45,6 +48,12 @@ export default function EnrollCourse() {
   const [pendingCourses, setPendingCourses] = useState([]);
   const [commonSection, setCommonSection] = useState("");
   const [showEvaluationToast, setShowEvaluationToast] = useState(false);
+  const [prerequisiteCheckStatus, setPrerequisiteCheckStatus] = useState(null); // null, 'checking', 'completed', 'failed', 'notFound'
+  const [prerequisiteCheckResult, setPrerequisiteCheckResult] = useState(null);
+  const [failedPrerequisiteCourses, setFailedPrerequisiteCourses] = useState([]); // Courses that should be disabled due to failed prerequisites (e.g., Math-II)
+  const [enabledPrerequisiteCourses, setEnabledPrerequisiteCourses] = useState([]); // Prerequisite courses that should be enabled (because they failed and need retake, e.g., Math-I)
+  const [failedPrerequisiteCodes, setFailedPrerequisiteCodes] = useState([]); // Track which prerequisite codes failed (e.g., ["MAT-101"])
+  const [failedPrerequisiteCoursesDetails, setFailedPrerequisiteCoursesDetails] = useState([]); // Full details of failed prerequisite courses to add to dropdown
   const queryClient = useQueryClient();
 
   const { data: registrationSchedule, isLoading: isLoadingSchedule } = useQuery(
@@ -106,7 +115,7 @@ export default function EnrollCourse() {
   });
 
   // Transform courses data to match the expected format
-  const courses = coursesData
+  const baseCourses = coursesData
     ? coursesData.map((course) => ({
       code: course.courseCode,
       title: course.courseTitle,
@@ -116,12 +125,38 @@ export default function EnrollCourse() {
     }))
     : [];
 
-  // Fetch sections from API
+  // Add failed prerequisite courses to the courses list (for retake enrollment)
+  // These courses might be from previous levels, so we need to include them
+  const failedPrereqCourses = failedPrerequisiteCoursesDetails.map((course) => ({
+    code: course.courseCode,
+    title: course.courseTitle,
+    credit: course.credit,
+    pre: course.prerequisite || [],
+    isLab: course.courseType === "Lab",
+    isRetake: true, // Mark as retake course
+  }));
+
+  // Merge base courses with failed prerequisite courses, avoiding duplicates
+  const allCourseCodes = new Set(baseCourses.map((c) => c.code));
+  const uniqueFailedPrereqs = failedPrereqCourses.filter(
+    (c) => !allCourseCodes.has(c.code)
+  );
+  const courses = [...baseCourses, ...uniqueFailedPrereqs];
+
+  // Determine section type based on selected course
+  // If course is a failed prerequisite (in enabledPrerequisiteCourses), use "retake", otherwise "regular"
+  const sectionType = useMemo(() => {
+    if (!selectedCourse) return "regular";
+    // Check if the selected course is a failed prerequisite that needs retaking
+    return enabledPrerequisiteCourses.includes(selectedCourse.code) ? "retake" : "regular";
+  }, [selectedCourse, enabledPrerequisiteCourses]);
+
+  // Fetch sections from API based on section type
   const { data: sectionData, isLoading: isLoadingSections } = useQuery({
-    queryKey: ["sections", session?.user?.department, session?.user?.studentId],
+    queryKey: ["sections", session?.user?.department, session?.user?.studentId, sectionType],
     queryFn: async () => {
       const res = await fetch(
-        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}`
+        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}&sectionType=${sectionType}`
       );
       const json = await res.json();
       if (!res.ok || !json.success)
@@ -221,14 +256,16 @@ export default function EnrollCourse() {
     ]),
   ];
 
-  // Disable courses that have prerequisites that are not enrolled
+  // Only disable courses that have been checked and found to have failed prerequisites
+  // Allow students to SELECT courses with prerequisites first, then check them
   const coursesWithUnmetPrereqs = courses
     .filter((course) => {
       if (course.pre.length === 0) return false;
-      return course.pre.some((preCode) => {
-        const isEnrolled = enrolledCourses.some((ec) => ec.code === preCode);
-        return !isEnrolled;
-      });
+      // Disable if any of its prerequisites failed (check against failedPrerequisiteCodes)
+      const hasFailedPrereq = course.pre.some((preCode) =>
+        failedPrerequisiteCodes.includes(preCode)
+      );
+      return hasFailedPrereq; // Only disable if prerequisite failed (after checking)
     })
     .map((c) => c.code);
 
@@ -239,10 +276,21 @@ export default function EnrollCourse() {
   // Calculate available courses (courses that can be enrolled)
   // Exclude courses with prerequisites - students should not add prerequisite courses
   // IMPORTANT: Only exclude enrolled courses, NOT pending courses (pending courses should be counted)
+  // BUT include prerequisite courses that failed and need retaking
   const availableCourses = courses.filter((course) => {
     const isEnrolled = enrolledCourses.some((ec) => ec.code === course.code);
     const hasUnmetPrereq = coursesWithUnmetPrereqs.includes(course.code);
-    return !isEnrolled && !hasUnmetPrereq && course.pre.length === 0; // Only courses without prerequisites
+    const isEnabledPrereq = enabledPrerequisiteCourses.includes(course.code);
+
+    // Include if:
+    // 1. Not enrolled
+    // 2. Either has no prerequisites OR is a failed prerequisite that needs retaking
+    // 3. Doesn't have unmet prerequisites (unless it's an enabled prerequisite)
+    return (
+      !isEnrolled &&
+      (course.pre.length === 0 || isEnabledPrereq) &&
+      (!hasUnmetPrereq || isEnabledPrereq)
+    );
   });
 
   // Check if all available courses are in pending list
@@ -252,12 +300,140 @@ export default function EnrollCourse() {
       pendingCourses.some((pc) => pc.code === course.code)
     );
 
-  
+
   const handleCourseChange = (value) => {
     const course = courses.find((c) => `${c.code} - ${c.title}` === value);
     setSelectedCourse(course);
     setSelectedSection("");
     setSelectedLabSubsection("");
+    // Reset prerequisite check status when course changes
+    setPrerequisiteCheckStatus(null);
+    setPrerequisiteCheckResult(null);
+  };
+
+  // Reset section selection when section type changes
+  useEffect(() => {
+    if (selectedCourse) {
+      setSelectedSection("");
+      setSelectedLabSubsection("");
+    }
+  }, [sectionType, selectedCourse]);
+
+  // Check prerequisite status
+  const handleCheckPrerequisite = async () => {
+    if (!selectedCourse || selectedCourse.pre.length === 0) {
+      return;
+    }
+
+    // Check all prerequisites
+    setPrerequisiteCheckStatus("checking");
+
+    try {
+      const prerequisiteChecks = await Promise.all(
+        selectedCourse.pre.map(async (preCode) => {
+          const res = await fetch(
+            `/api/student/check-prerequisite?studentId=${session?.user?.studentId}&prerequisiteCode=${preCode}`
+          );
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.message || "Failed to check prerequisite");
+          }
+          return json.data;
+        })
+      );
+
+      // Check if all prerequisites are completed
+      const allCompleted = prerequisiteChecks.every(
+        (check) => check.found === true && check.status === "completed"
+      );
+
+      // Check if any prerequisite failed (must be found in previous semester and status is failed)
+      const anyFailed = prerequisiteChecks.some(
+        (check) => check.found === true && check.status === "failed"
+      );
+
+      // Check if any prerequisite is not found or still enrolled (not completed)
+      const anyNotCompleted = prerequisiteChecks.some(
+        (check) => !check.found || check.status === "enrolled" || (check.status !== "completed" && check.status !== "failed")
+      );
+
+      if (allCompleted) {
+        setPrerequisiteCheckStatus("completed");
+        setPrerequisiteCheckResult({
+          status: "completed",
+          message: "All prerequisites are completed. You can add this course.",
+        });
+        toast.success("All prerequisites are completed. You can add this course.");
+      } else if (anyFailed) {
+        setPrerequisiteCheckStatus("failed");
+        const failedPrereqs = prerequisiteChecks.filter(
+          (check) => check.found && check.status === "failed"
+        );
+        setPrerequisiteCheckResult({
+          status: "failed",
+          failedPrerequisites: failedPrereqs,
+          message: "Some prerequisites failed. You need to retake them first.",
+        });
+
+        // Track failed prerequisite codes
+        const failedCodes = failedPrereqs.map((f) => f.prerequisiteCode);
+        setFailedPrerequisiteCodes((prev) => [
+          ...new Set([...prev, ...failedCodes]),
+        ]);
+
+        // Store full details of failed prerequisite courses to add to dropdown
+        const failedPrereqDetails = failedPrereqs
+          .filter((f) => f.prerequisiteDetails)
+          .map((f) => f.prerequisiteDetails);
+
+        setFailedPrerequisiteCoursesDetails((prev) => {
+          const existingCodes = new Set(prev.map((c) => c.courseCode));
+          const newDetails = failedPrereqDetails.filter(
+            (c) => !existingCodes.has(c.courseCode)
+          );
+          return [...prev, ...newDetails];
+        });
+
+        // Enable failed prerequisite courses in dropdown
+        setEnabledPrerequisiteCourses((prev) => [
+          ...new Set([...prev, ...failedCodes]),
+        ]);
+
+        // Disable the course that requires these failed prerequisites
+        setFailedPrerequisiteCourses((prev) => [
+          ...new Set([...prev, selectedCourse.code]),
+        ]);
+
+        toast.error(
+          `Prerequisite(s) failed: ${failedPrereqs.map((f) => f.prerequisiteCode).join(", ")}. Please retake them first.`
+        );
+      } else if (anyNotCompleted) {
+        setPrerequisiteCheckStatus("notCompleted");
+        const notCompletedPrereqs = prerequisiteChecks.filter(
+          (check) => !check.found || check.status === "enrolled" || (check.status !== "completed" && check.status !== "failed")
+        );
+        setPrerequisiteCheckResult({
+          status: "notCompleted",
+          notCompletedPrerequisites: notCompletedPrereqs,
+          message: "Some prerequisites are not completed yet. Please complete them first.",
+        });
+        toast.error("Wait for the teacher evaluation")
+      } else {
+        setPrerequisiteCheckStatus("notFound");
+        setPrerequisiteCheckResult({
+          status: "notFound",
+          message: "Prerequisites not found in previous semesters.",
+        });
+        toast.error("Prerequisites not found in previous semesters.");
+      }
+    } catch (error) {
+      setPrerequisiteCheckStatus("error");
+      setPrerequisiteCheckResult({
+        status: "error",
+        message: error.message || "Failed to check prerequisites",
+      });
+      toast.error(error.message || "Failed to check prerequisites");
+    }
   };
 
   // Add course to pending list
@@ -273,6 +449,9 @@ export default function EnrollCourse() {
       return;
     }
 
+    // Check if this is a retake course
+    const isRetakeCourse = sectionType === "retake" || enabledPrerequisiteCourses.includes(selectedCourse.code);
+
     // Validate section selection
     if (selectedCourse.isLab) {
       // For lab courses, need both section and subsection
@@ -281,17 +460,20 @@ export default function EnrollCourse() {
         return;
       }
 
-      // If regular courses are already added, lab must use the same base section
-      if (commonSection && selectedSection !== commonSection) {
-        alert(
-          `Lab courses must be in subsections of section ${commonSection}. Please select section ${commonSection}.`
-        );
-        return;
-      }
+      // For retake courses, don't enforce commonSection restriction
+      if (!isRetakeCourse) {
+        // If regular courses are already added, lab must use the same base section
+        if (commonSection && selectedSection !== commonSection) {
+          alert(
+            `Lab courses must be in subsections of section ${commonSection}. Please select section ${commonSection}.`
+          );
+          return;
+        }
 
-      // If this is the first course (lab course), set common section
-      if (!commonSection && pendingCourses.length === 0) {
-        setCommonSection(selectedSection);
+        // If this is the first course (lab course), set common section
+        if (!commonSection && pendingCourses.length === 0) {
+          setCommonSection(selectedSection);
+        }
       }
     } else {
       // For regular courses, need section
@@ -300,33 +482,36 @@ export default function EnrollCourse() {
         return;
       }
 
-      // Check if this is the first regular course or if section matches common section
-      const regularCourses = pendingCourses.filter(
-        (pc) => !pc.isLab && !pc.isPrereq
-      );
+      // For retake courses, don't enforce commonSection restriction
+      if (!isRetakeCourse) {
+        // Check if this is the first regular course or if section matches common section
+        const regularCourses = pendingCourses.filter(
+          (pc) => !pc.isLab && !pc.isPrereq && !enabledPrerequisiteCourses.includes(pc.code)
+        );
 
-      // If commonSection is already set (from lab courses or previous regular courses), must match it
-      if (commonSection) {
-        if (selectedSection !== commonSection) {
-          alert(
-            `All courses must be in the same section. Please select section ${commonSection}.`
-          );
-          return;
+        // If commonSection is already set (from lab courses or previous regular courses), must match it
+        if (commonSection) {
+          if (selectedSection !== commonSection) {
+            alert(
+              `All courses must be in the same section. Please select section ${commonSection}.`
+            );
+            return;
+          }
+        } else if (regularCourses.length > 0) {
+          // Check if section matches existing regular courses (extract base section for comparison)
+          const firstRegularSection = regularCourses[0].section.charAt(0); // Get first character (A, B, C, D)
+          if (selectedSection !== firstRegularSection) {
+            alert(
+              `All regular courses must be in the same section. Please select section ${firstRegularSection}.`
+            );
+            return;
+          }
+          // Set common section if not already set
+          setCommonSection(selectedSection);
+        } else {
+          // First regular course - set common section
+          setCommonSection(selectedSection);
         }
-      } else if (regularCourses.length > 0) {
-        // Check if section matches existing regular courses (extract base section for comparison)
-        const firstRegularSection = regularCourses[0].section.charAt(0); // Get first character (A, B, C, D)
-        if (selectedSection !== firstRegularSection) {
-          alert(
-            `All regular courses must be in the same section. Please select section ${firstRegularSection}.`
-          );
-          return;
-        }
-        // Set common section if not already set
-        setCommonSection(selectedSection);
-      } else {
-        // First regular course - set common section
-        setCommonSection(selectedSection);
       }
     }
 
@@ -345,7 +530,7 @@ export default function EnrollCourse() {
         credit: selectedCourse.credit,
         section: finalSection,
         isLab: selectedCourse.isLab || false,
-        isPrereq: false,
+        isPrereq: isRetakeCourse, // Mark as prerequisite/retake course
       },
     ]);
 
@@ -448,9 +633,11 @@ export default function EnrollCourse() {
     }
 
     // Prepare courses for enrollment
+    // Include sectionType info for retake courses
     const coursesToEnroll = pendingCourses.map((pc) => ({
       code: pc.code,
       section: pc.section,
+      isRetake: pc.isPrereq || false, // Mark retake courses
     }));
 
     // Call the mutation
@@ -609,18 +796,29 @@ export default function EnrollCourse() {
                           </SelectTrigger>
                           <SelectContent className="cursor-pointer">
                             {courses.length > 0 ? (
-                              courses.map((c) => (
-                                <SelectItem
-                                  key={c.code}
-                                  value={`${c.code} - ${c.title}`}
-                                  disabled={allDisabledCodes.includes(c.code)}
-                                  className="cursor-pointer"
-                                >
-                                  {c.code} - {c.title}
-                                  {coursesWithUnmetPrereqs.includes(c.code) &&
-                                    " (Prerequisites Required)"}
-                                </SelectItem>
-                              ))
+                              courses.map((c) => {
+                                const isDisabled = allDisabledCodes.includes(c.code);
+                                const isEnabledPrereq = enabledPrerequisiteCourses.includes(c.code);
+                                const hasFailedPrereq = failedPrerequisiteCourses.includes(c.code);
+                                const hasPrerequisites = c.pre && c.pre.length > 0;
+
+                                return (
+                                  <SelectItem
+                                    key={c.code}
+                                    value={`${c.code} - ${c.title}`}
+                                    disabled={isDisabled && !isEnabledPrereq}
+                                    className="cursor-pointer"
+                                  >
+                                    {c.code} - {c.title}
+                                    {isEnabledPrereq && " (Prerequisite - Retake Required)"}
+                                    {hasFailedPrereq && " (Prerequisite Failed - Cannot Enroll)"}
+                                    {hasPrerequisites &&
+                                      !isEnabledPrereq &&
+                                      !hasFailedPrereq &&
+                                      " (Prerequisites Required - Check First)"}
+                                  </SelectItem>
+                                );
+                              })
                             ) : (
                               <SelectItem value="no-courses" disabled>
                                 No courses available
@@ -630,17 +828,76 @@ export default function EnrollCourse() {
                         </Select>
                       </div>
 
+                      {/* Prerequisite Check Result */}
+                      {selectedCourse &&
+                        selectedCourse.pre.length > 0 &&
+                        prerequisiteCheckResult && (
+                          <div
+                            className={`p-3 rounded-lg border ${prerequisiteCheckResult.status === "completed"
+                                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                                : prerequisiteCheckResult.status === "failed"
+                                  ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                  : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                              }`}
+                          >
+                            <div
+                              className={`text-sm font-semibold ${prerequisiteCheckResult.status === "completed"
+                                  ? "text-green-700 dark:text-green-400"
+                                  : prerequisiteCheckResult.status === "failed"
+                                    ? "text-red-700 dark:text-red-400"
+                                    : "text-yellow-700 dark:text-yellow-400"
+                                }`}
+                            >
+                              {prerequisiteCheckResult.message}
+                              {prerequisiteCheckResult.status === "failed" &&
+                                prerequisiteCheckResult.failedPrerequisites && (
+                                  <div className="mt-2 text-xs">
+                                    Failed prerequisites:{" "}
+                                    {prerequisiteCheckResult.failedPrerequisites
+                                      .map(
+                                        (f) =>
+                                          `${f.prerequisiteCode} - ${f.prerequisiteTitle}`
+                                      )
+                                      .join(", ")}
+                                  </div>
+                                )}
+                              {prerequisiteCheckResult.status === "notCompleted" &&
+                                prerequisiteCheckResult.notCompletedPrerequisites && (
+                                  <div className="mt-2 text-xs">
+                                    Not completed prerequisites:{" "}
+                                    {prerequisiteCheckResult.notCompletedPrerequisites
+                                      .map(
+                                        (f) =>
+                                          f.prerequisiteCode
+                                            ? `${f.prerequisiteCode} - ${f.prerequisiteTitle || f.prerequisiteCode}`
+                                            : "Unknown prerequisite"
+                                      )
+                                      .join(", ")}
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        )}
+
                       {/* Section Selection */}
                       {selectedCourse && (
                         <div className="flex gap-2">
                           <div className="flex-1">
                             <Label className="text-sm font-semibold">
                               Select Section{" "}
-                              {commonSection
+                              <span className={`text-xs font-normal ${sectionType === "retake"
+                                  ? "text-orange-600 dark:text-orange-400"
+                                  : "text-blue-600 dark:text-blue-400"
+                                }`}>
+                                ({sectionType === "retake" ? "Retake" : "Regular"})
+                              </span>
+                              {commonSection && sectionType !== "retake"
                                 ? selectedCourse.isLab
-                                  ? `(Must be ${commonSection} for lab subsections)`
-                                  : `(Must be ${commonSection})`
-                                : ""}
+                                  ? ` - Must be ${commonSection} for lab subsections`
+                                  : ` - Must be ${commonSection}`
+                                : sectionType === "retake"
+                                  ? " - Any section available"
+                                  : ""}
                             </Label>
                             <Select
                               value={selectedSection}
@@ -661,7 +918,11 @@ export default function EnrollCourse() {
                                       key={s}
                                       value={s}
                                       disabled={
-                                        commonSection && s !== commonSection
+                                        // For retake courses, don't disable any sections
+                                        // For regular courses, disable if commonSection is set and section doesn't match
+                                        sectionType === "retake"
+                                          ? false
+                                          : commonSection && s !== commonSection
                                       }
                                       className="cursor-pointer"
                                     >
@@ -702,14 +963,42 @@ export default function EnrollCourse() {
                             </div>
                           )}
 
-                          <div className="flex items-end">
+                          <div className="flex items-end gap-2">
+                            {/* Show Check Pre-requisite button if course has prerequisites and not yet checked or completed */}
+                            {selectedCourse &&
+                              selectedCourse.pre.length > 0 &&
+                              prerequisiteCheckStatus !== "completed" &&
+                              prerequisiteCheckStatus !== "checking" && (
+                                <Button
+                                  variant="outline"
+                                  onClick={handleCheckPrerequisite}
+                                  className="whitespace-nowrap"
+                                >
+                                  Check Pre-requisite
+                                </Button>
+                              )}
+
+                            {/* Show checking status */}
+                            {prerequisiteCheckStatus === "checking" && (
+                              <Button
+                                variant="outline"
+                                disabled
+                                className="whitespace-nowrap"
+                              >
+                                Checking...
+                              </Button>
+                            )}
+
+                            {/* Show Add button - only if no prerequisites or prerequisites are completed */}
                             <Button
                               variant="diu"
                               onClick={handleAddCourse}
                               disabled={
                                 !selectedCourse ||
                                 !selectedSection ||
-                                (selectedCourse.isLab && !selectedLabSubsection)
+                                (selectedCourse.isLab && !selectedLabSubsection) ||
+                                (selectedCourse.pre.length > 0 &&
+                                  prerequisiteCheckStatus !== "completed")
                               }
                               className="whitespace-nowrap"
                             >

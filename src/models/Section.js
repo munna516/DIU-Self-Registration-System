@@ -50,6 +50,11 @@ const sectionSchema = new Schema(
       min: 1,
       max: 30,
     },
+    sectionType: {
+      type: String,
+      enum: ["regular", "retake"],
+      required: true,
+    },
     sections: [
       {
         name: { type: String, required: true }, // e.g., A, A1, A2
@@ -66,6 +71,6 @@ const sectionSchema = new Schema(
   { timestamps: true }
 );
 
-sectionSchema.index({ department: 1, level: 1 }, { unique: true });
+sectionSchema.index({ department: 1, level: 1, sectionType: 1 }, { unique: true });
 
 export default mongoose.models.Section || mongoose.model("Section", sectionSchema);
