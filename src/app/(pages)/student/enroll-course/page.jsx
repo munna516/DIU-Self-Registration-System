@@ -132,7 +132,7 @@ export default function EnrollCourse() {
     credit: course.credit,
     pre: course.prerequisite || [],
     isLab: course.courseType === "Lab",
-    isRetake: true, // Mark as retake course
+    isRetake: true,
   }));
 
   // Merge base courses with failed prerequisite courses, avoiding duplicates
