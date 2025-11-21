@@ -84,5 +84,9 @@ const studentSchema = new Schema(
   { timestamps: true }
 );
 
+// Add indexes for frequently queried fields
+studentSchema.index({ studentId: 1 }, { unique: true });
+studentSchema.index({ email: 1 }, { unique: true });
+
 export default mongoose.models.Student ||
   mongoose.model("Student", studentSchema);
