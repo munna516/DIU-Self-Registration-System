@@ -26,7 +26,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-
 // Helper function to generate section letters based on count
 const generateSections = (count) => {
   const sections = [];
@@ -844,18 +843,18 @@ export default function EnrollCourse() {
                         prerequisiteCheckResult && (
                           <div
                             className={`p-3 rounded-lg border ${prerequisiteCheckResult.status === "completed"
-                                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                                : prerequisiteCheckResult.status === "failed"
-                                  ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                                  : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                              ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                              : prerequisiteCheckResult.status === "failed"
+                                ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
                               }`}
                           >
                             <div
                               className={`text-sm font-semibold ${prerequisiteCheckResult.status === "completed"
-                                  ? "text-green-700 dark:text-green-400"
-                                  : prerequisiteCheckResult.status === "failed"
-                                    ? "text-red-700 dark:text-red-400"
-                                    : "text-yellow-700 dark:text-yellow-400"
+                                ? "text-green-700 dark:text-green-400"
+                                : prerequisiteCheckResult.status === "failed"
+                                  ? "text-red-700 dark:text-red-400"
+                                  : "text-yellow-700 dark:text-yellow-400"
                                 }`}
                             >
                               {prerequisiteCheckResult.message}
@@ -896,8 +895,8 @@ export default function EnrollCourse() {
                             <Label className="text-sm font-semibold">
                               Select Section{" "}
                               <span className={`text-xs font-normal ${sectionType === "retake"
-                                  ? "text-orange-600 dark:text-orange-400"
-                                  : "text-blue-600 dark:text-blue-400"
+                                ? "text-orange-600 dark:text-orange-400"
+                                : "text-blue-600 dark:text-blue-400"
                                 }`}>
                                 ({sectionType === "retake" ? "Retake" : "Regular"})
                               </span>
@@ -948,106 +947,106 @@ export default function EnrollCourse() {
                       {/* Lab Subsection Selection */}
                       {selectedCourse && selectedCourse.isLab && (
                         <div className="flex gap-2">
-                            <div className="flex-1">
-                              <Label className="text-sm font-semibold">
-                                Select Subsection{" "}
-                                <span className={`text-xs font-normal ${sectionType === "retake"
-                                    ? "text-orange-600 dark:text-orange-400"
-                                    : "text-blue-600 dark:text-blue-400"
-                                  }`}>
-                                  ({sectionType === "retake" ? "Retake" : "Regular"})
-                                </span>
-                                {commonSection && sectionType !== "retake"
-                                  ? ` - Must be ${commonSection} subsections`
-                                  : sectionType === "retake"
-                                    ? " - Any subsection available"
-                                    : ""}
-                              </Label>
-                              <Select
-                                value={selectedLabSubsection}
-                                onValueChange={setSelectedLabSubsection}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select Subsection" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sections.length > 0 ? (
-                                    sections.flatMap((section) =>
-                                      labSubsections.map((sub) => {
-                                        const subsectionValue = `${section}${sub}`;
-                                        // For retake courses, show all subsections
-                                        // For regular courses, only show subsections of commonSection if set
-                                        const isDisabled = sectionType !== "retake" && 
-                                          commonSection && 
-                                          section !== commonSection;
-                                        
-                                        return (
-                                          <SelectItem
-                                            key={subsectionValue}
-                                            value={subsectionValue}
-                                            disabled={isDisabled}
-                                            className="cursor-pointer"
-                                          >
-                                            {subsectionValue} (25)
-                                          </SelectItem>
-                                        );
-                                      })
-                                    )
-                                  ) : (
-                                    <SelectItem value="no-subsections" disabled>
-                                      No subsections available
-                                    </SelectItem>
-                                  )}
-                                </SelectContent>
-                              </Select>
+                          <div className="flex-1">
+                            <Label className="text-sm font-semibold">
+                              Select Subsection{" "}
+                              <span className={`text-xs font-normal ${sectionType === "retake"
+                                ? "text-orange-600 dark:text-orange-400"
+                                : "text-blue-600 dark:text-blue-400"
+                                }`}>
+                                ({sectionType === "retake" ? "Retake" : "Regular"})
+                              </span>
+                              {commonSection && sectionType !== "retake"
+                                ? ` - Must be ${commonSection} subsections`
+                                : sectionType === "retake"
+                                  ? " - Any subsection available"
+                                  : ""}
+                            </Label>
+                            <Select
+                              value={selectedLabSubsection}
+                              onValueChange={setSelectedLabSubsection}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select Subsection" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {sections.length > 0 ? (
+                                  sections.flatMap((section) =>
+                                    labSubsections.map((sub) => {
+                                      const subsectionValue = `${section}${sub}`;
+                                      // For retake courses, show all subsections
+                                      // For regular courses, only show subsections of commonSection if set
+                                      const isDisabled = sectionType !== "retake" &&
+                                        commonSection &&
+                                        section !== commonSection;
+
+                                      return (
+                                        <SelectItem
+                                          key={subsectionValue}
+                                          value={subsectionValue}
+                                          disabled={isDisabled}
+                                          className="cursor-pointer"
+                                        >
+                                          {subsectionValue} (25)
+                                        </SelectItem>
+                                      );
+                                    })
+                                  )
+                                ) : (
+                                  <SelectItem value="no-subsections" disabled>
+                                    No subsections available
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                       )}
 
                       {/* Add Button Section */}
                       {selectedCourse && (
-                          <div className="flex items-end gap-2">
-                            {/* Show Check Pre-requisite button if course has prerequisites and not yet checked or completed */}
-                            {selectedCourse &&
-                              selectedCourse.pre.length > 0 &&
-                              prerequisiteCheckStatus !== "completed" &&
-                              prerequisiteCheckStatus !== "checking" && (
-                                <Button
-                                  variant="outline"
-                                  onClick={handleCheckPrerequisite}
-                                  className="whitespace-nowrap"
-                                >
-                                  Check Pre-requisite
-                                </Button>
-                              )}
-
-                            {/* Show checking status */}
-                            {prerequisiteCheckStatus === "checking" && (
+                        <div className="flex items-end gap-2">
+                          {/* Show Check Pre-requisite button if course has prerequisites and not yet checked or completed */}
+                          {selectedCourse &&
+                            selectedCourse.pre.length > 0 &&
+                            prerequisiteCheckStatus !== "completed" &&
+                            prerequisiteCheckStatus !== "checking" && (
                               <Button
                                 variant="outline"
-                                disabled
+                                onClick={handleCheckPrerequisite}
                                 className="whitespace-nowrap"
                               >
-                                Checking...
+                                Check Pre-requisite
                               </Button>
                             )}
 
-                            {/* Show Add button - only if no prerequisites or prerequisites are completed */}
+                          {/* Show checking status */}
+                          {prerequisiteCheckStatus === "checking" && (
                             <Button
-                              variant="diu"
-                              onClick={handleAddCourse}
-                              disabled={
-                                !selectedCourse ||
-                                (!selectedCourse.isLab && !selectedSection) ||
-                                (selectedCourse.isLab && !selectedLabSubsection) ||
-                                (selectedCourse.pre.length > 0 &&
-                                  prerequisiteCheckStatus !== "completed")
-                              }
+                              variant="outline"
+                              disabled
                               className="whitespace-nowrap"
                             >
-                              Add
+                              Checking...
                             </Button>
-                          </div>
+                          )}
+
+                          {/* Show Add button - only if no prerequisites or prerequisites are completed */}
+                          <Button
+                            variant="diu"
+                            onClick={handleAddCourse}
+                            disabled={
+                              !selectedCourse ||
+                              (!selectedCourse.isLab && !selectedSection) ||
+                              (selectedCourse.isLab && !selectedLabSubsection) ||
+                              (selectedCourse.pre.length > 0 &&
+                                prerequisiteCheckStatus !== "completed")
+                            }
+                            className="whitespace-nowrap"
+                          >
+                            Add
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>

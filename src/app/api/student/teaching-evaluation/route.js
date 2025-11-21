@@ -19,7 +19,19 @@ export async function GET(request) {
       );
     }
 
-    const semester = await Semester.findOne();
+    // Fetch semester and student in parallel
+    const [semester, student] = await Promise.all([
+      Semester.findOne().lean(),
+      Student.findOne({ _id: id }).lean(),
+    ]);
+
+    if (!semester) {
+      return NextResponse.json(
+        { success: false, data: false },
+        { status: 404 }
+      );
+    }
+
     const term = getStudentTerm(studentId, {
       semester: semester.semester,
       year: semester.year,
@@ -29,7 +41,6 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: true }, { status: 200 });
     } else {
       // Find student - evaluations array now contains objects with { type: ObjectId, semester: String }
-      const student = await Student.findOne({ _id: id });
 
       if (!student) {
         return NextResponse.json(
@@ -83,11 +94,11 @@ export async function GET(request) {
         );
       }
 
-      // Get the RegisterCourse document
-      const registerCourse = await RegisterCourse.findById(
-        registeredCourseRef.type
-      );
-
+      // Fetch RegisterCourse and Evaluation in parallel
+      const [registerCourse, evaluation] = await Promise.all([
+        RegisterCourse.findById(registeredCourseRef.type).lean(),
+        Evaluation.findById(lastEvaluation.type).lean(),
+      ]);
 
       if (!registerCourse || !registerCourse.courses) {
         // No courses found in RegisterCourse
@@ -99,9 +110,6 @@ export async function GET(request) {
 
       // Count the number of registered courses
       const numberOfRegisteredCourses = registerCourse.courses.length;
-
-      // Get the Evaluation document for this semester
-      const evaluation = await Evaluation.findById(lastEvaluation.type);
 
       if (!evaluation || !evaluation.evaluations) {
         // No evaluation found or no courses evaluated

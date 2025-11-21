@@ -13,9 +13,10 @@ export async function GET(request) {
         { status: 400 }
       );
     }
+    // Use lean() for read-only operations to improve performance
     const registrationSchedule = await RegistrationSchedule.findOne({
       department: department,
-    });
+    }).lean();
     return NextResponse.json({ success: true, data: registrationSchedule });
   } catch (error) {
     return NextResponse.json(

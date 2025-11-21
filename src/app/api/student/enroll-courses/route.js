@@ -27,18 +27,20 @@ export async function GET(request) {
       );
     }
 
-    const semester = await Semester.findOne();
+    // Use lean() for read-only operations to improve performance
+    const semester = await Semester.findOne().lean();
     // Calculate student level using getStudentTerm function
     const level = getStudentTerm(studentId, {
       semester: semester.semester,
       year: semester.year,
     });
 
-    // Fetch courses based on department and level
+    // Fetch courses based on department and level - only select needed fields
+    // Use lean() for read-only operations to improve performance
     const courses = await Course.find({
       department: department,
       level: level,
-    });
+    }).select("courseCode courseTitle credit courseType prerequisite").lean();
 
     return NextResponse.json({
       success: true,

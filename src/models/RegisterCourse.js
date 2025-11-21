@@ -34,5 +34,9 @@ const registerCourseSchema = new Schema(
   { timestamps: true }
 );
 
+// Add indexes for frequently queried fields
+registerCourseSchema.index({ student: 1, semester: 1 });
+registerCourseSchema.index({ student: 1 });
+
 export default mongoose.models.RegisterCourse ||
   mongoose.model("RegisterCourse", registerCourseSchema);
