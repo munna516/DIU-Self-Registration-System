@@ -4,7 +4,8 @@ import Semester from "@/models/Semester";
 export async function GET(request) {
     try {
         await connect();
-        const semester = await Semester.findOne();
+        // Use lean() for read-only operations to improve performance
+        const semester = await Semester.findOne().lean();
         if (!semester) {
             return NextResponse.json({
                 success: false,
@@ -16,7 +17,6 @@ export async function GET(request) {
             data: semester,
         }, { status: 200 });
     } catch (error) {
-
         return NextResponse.json({
             success: false,
             message: "Failed to fetch semester",

@@ -42,11 +42,12 @@ export async function GET(request) {
     });
 
     // Fetch section based on department, level, and sectionType
+    // Use lean() for read-only operations to improve performance
     const section = await Section.findOne({
       department: department,
       level: level,
       sectionType: sectionType,
-    });
+    }).lean();
 
     if (!section) {
       return NextResponse.json(

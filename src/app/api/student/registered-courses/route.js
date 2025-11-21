@@ -19,23 +19,22 @@ export async function GET(request) {
       );
     }
 
-    // Get student
-    const student = await Student.findOne({ studentId });
-    if (!student) {
-      return NextResponse.json(
-        { success: false, message: "Student not found" },
-        { status: 404 }
-      );
-    }
-
-    // Determine which semester to use
+    // Fetch student and semester in parallel if semester not provided
     let semesterString;
+    let student;
+    
     if (semester) {
       // Use the provided semester
       semesterString = semester;
+      // Use lean() for read-only operations
+      student = await Student.findOne({ studentId }).lean();
     } else {
-      // Get current semester if not provided
-      const currentSemester = await Semester.findOne();
+      // Get current semester and student in parallel
+      const [currentSemester, studentData] = await Promise.all([
+        Semester.findOne().lean(),
+        Student.findOne({ studentId }).lean(),
+      ]);
+      
       if (!currentSemester) {
         return NextResponse.json(
           { success: false, message: "Current semester not found" },
@@ -43,6 +42,14 @@ export async function GET(request) {
         );
       }
       semesterString = `${currentSemester.semester} ${currentSemester.year}`;
+      student = studentData;
+    }
+    
+    if (!student) {
+      return NextResponse.json(
+        { success: false, message: "Student not found" },
+        { status: 404 }
+      );
     }
 
     // Find RegisterCourse for the specified semester
@@ -63,16 +70,25 @@ export async function GET(request) {
       });
     }
 
-    // Get all Section documents to find section names
+    // Get only the section IDs that are actually used by this student's courses
+    const sectionIds = registerCourse.courses.map((item) => item.section);
+    
+    // Fetch only the Section documents that contain these section IDs
+    // We need to find which Section documents contain these section object IDs
+    // Only select the sections array to reduce data transfer
     const sectionDocs = await Section.find({
       department: student.department,
-    });
+    }).select("sections").lean();
 
     // Create a map of section _id to section name
     const sectionMap = new Map();
     sectionDocs.forEach((sectionDoc) => {
       sectionDoc.sections.forEach((sectionObj) => {
-        sectionMap.set(sectionObj._id.toString(), sectionObj.name);
+        const sectionIdStr = sectionObj._id.toString();
+        // Only add sections that are actually used
+        if (sectionIds.some((id) => id.toString() === sectionIdStr)) {
+          sectionMap.set(sectionIdStr, sectionObj.name);
+        }
       });
     });
 

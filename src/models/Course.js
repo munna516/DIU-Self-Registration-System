@@ -57,4 +57,8 @@ const courseSchema = new Schema(
   { timestamps: true }
 );
 
+// Add indexes for frequently queried fields
+courseSchema.index({ courseCode: 1, department: 1 });
+courseSchema.index({ department: 1, level: 1 });
+
 export default mongoose.models.Course || mongoose.model("Course", courseSchema);
