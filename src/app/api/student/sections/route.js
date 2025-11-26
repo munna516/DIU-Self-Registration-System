@@ -47,7 +47,9 @@ export async function GET(request) {
       department: department,
       level: level,
       sectionType: sectionType,
-    }).lean();
+    })
+      .select("count")
+      .lean();
 
     if (!section) {
       return NextResponse.json(
