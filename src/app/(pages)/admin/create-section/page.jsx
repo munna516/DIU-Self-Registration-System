@@ -143,6 +143,7 @@ const levels = [
 export default function CreateSection() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     department: departments[0].value,
     level: levels[0].value,
@@ -166,6 +167,7 @@ export default function CreateSection() {
 
   const addMutation = useMutation({
     mutationFn: async (payload) => {
+      setLoading(true);
       const res = await fetch("/api/admin/section", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,12 +181,14 @@ export default function CreateSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sections"] });
       toast.success("Section created successfully");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Failed to create section"),
   });
 
   const updateMutation = useMutation({
     mutationFn: async (payload) => {
+      setLoading(true);
       const res = await fetch("/api/admin/section", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -198,12 +202,14 @@ export default function CreateSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sections"] });
       toast.success("Section updated successfully");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Failed to update section"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
+      setLoading(true);
       const res = await fetch("/api/admin/section", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -212,11 +218,13 @@ export default function CreateSection() {
       const json = await res.json();
       if (!res.ok || !json.success)
         throw new Error(json.message || "Failed to delete section");
+      setLoading(false);
       return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sections"] });
       toast.success("Section deleted successfully");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Failed to delete section"),
   });
@@ -440,6 +448,7 @@ export default function CreateSection() {
                       <Button
                         variant="destructive"
                         className="w-1/2"
+                        disabled={loading}
                         onClick={() => {
                           const idx = filteredSections.findIndex(
                             (s) => s._id === editSectionId
@@ -448,7 +457,7 @@ export default function CreateSection() {
                           setDialogOpen(false);
                         }}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        {loading ? "Deleting..." : <Trash2 className="w-4 h-4 mr-2" />} Delete
                       </Button>
                     )}
                     <Button
@@ -456,10 +465,10 @@ export default function CreateSection() {
                       className="w-full"
                       onClick={handleSave}
                       disabled={
-                        addMutation.isPending || updateMutation.isPending
+                        addMutation.isPending || updateMutation.isPending || loading
                       }
                     >
-                      {editSectionId !== null
+                      {loading ? "Saving..." : editSectionId !== null
                         ? "Update Section"
                         : "Save Section"}
                     </Button>
