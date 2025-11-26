@@ -43,9 +43,6 @@ export default function TopNavbar({
             )}
           </div>
           <div>
-            <Bell className="h-5 w-5" />
-          </div>
-          <div>
             <Button variant="logout" onClick={() => handleLogout()}>
               Logout
             </Button>

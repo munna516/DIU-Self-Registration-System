@@ -186,12 +186,12 @@ export default function Profile() {
           <div className="pt-4">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="diu" className="w-full">
+                <Button variant="diu" className="w-full dark:bg-slate-700 dark:text-white">
                   <Shield className="w-4 h-4 mr-2" />
                   Change Password
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md dark:bg-slate-800 dark:text-white">
                 <DialogHeader>
                   <DialogTitle>Change Password</DialogTitle>
                   <DialogDescription>
