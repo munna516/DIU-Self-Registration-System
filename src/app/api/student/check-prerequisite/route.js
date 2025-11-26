@@ -26,19 +26,18 @@ export async function GET(request) {
       );
     }
 
-    // Get student
-    const student = await Student.findOne({ studentId });
+    const [student, prerequisiteCourse, currentSemester] = await Promise.all([
+      Student.findOne({ studentId }).lean(),
+      Course.findOne({ courseCode: prerequisiteCode }).lean(),
+      Semester.findOne().lean(),
+    ]);
+
     if (!student) {
       return NextResponse.json(
         { success: false, message: "Student not found" },
         { status: 404 }
       );
     }
-
-    // Find the prerequisite course to get its details
-    const prerequisiteCourse = await Course.findOne({
-      courseCode: prerequisiteCode,
-    });
 
     if (!prerequisiteCourse) {
       return NextResponse.json({
@@ -51,8 +50,6 @@ export async function GET(request) {
       });
     }
 
-    // Get current semester to calculate previous semester
-    const currentSemester = await Semester.findOne();
     if (!currentSemester) {
       return NextResponse.json(
         { success: false, message: "Current semester not found" },
@@ -82,11 +79,13 @@ export async function GET(request) {
     const previousRegisterCourse = await RegisterCourse.findOne({
       student: student._id,
       semester: previousSemesterString,
-    }).populate({
-      path: "courses.course",
-      model: "Course",
-      select: "courseCode courseTitle",
-    });
+    })
+      .populate({
+        path: "courses.course",
+        model: "Course",
+        select: "courseCode courseTitle",
+      })
+      .lean();
 
     // Check if the prerequisite course was taken in previous semester
     let prerequisiteStatus = null;

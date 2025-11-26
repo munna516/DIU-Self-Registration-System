@@ -154,6 +154,7 @@ const levelLabelByValue = Object.fromEntries(
 export default function Courses() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     code: "",
     title: "",
@@ -180,6 +181,7 @@ export default function Courses() {
 
   const addMutation = useMutation({
     mutationFn: async (payload) => {
+      setLoading(true);
       const res = await fetch("/api/admin/add-course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -193,12 +195,14 @@ export default function Courses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] });
       toast.success("Course added");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Failed to add"),
   });
 
   const updateMutation = useMutation({
     mutationFn: async (payload) => {
+      setLoading(true);
       const res = await fetch("/api/admin/add-course", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -212,12 +216,14 @@ export default function Courses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] });
       toast.success("Course updated");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Failed to update"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
+      setLoading(true);
       const res = await fetch("/api/admin/add-course", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -231,6 +237,7 @@ export default function Courses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] });
       toast.success("Course deleted");
+      setLoading(false);
     },
     onError: (e) => toast.error(e.message || "Delete failed"),
   });
@@ -264,6 +271,7 @@ export default function Courses() {
   };
 
   const handleSave = async () => {
+
     const error = validateForm();
     if (error) {
       toast.error(error);
@@ -297,6 +305,7 @@ export default function Courses() {
       prerequisite: "",
     });
     setEditCourseId(null);
+
   };
 
   const handleEdit = (idx) => {
@@ -518,6 +527,7 @@ export default function Courses() {
                       <Button
                         variant="destructive"
                         className="w-1/2"
+                        disabled={loading}
                         onClick={() => {
                           const idx = filteredCourses.findIndex(
                             (c) => c._id === editCourseId
@@ -526,15 +536,16 @@ export default function Courses() {
                           setDialogOpen(false);
                         }}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        {loading ? "Deleting..." : <Trash2 className="w-4 h-4 mr-2" />} Delete
                       </Button>
                     )}
                     <Button
                       variant="diu"
                       className="w-full"
                       onClick={handleSave}
+                      disabled={loading}
                     >
-                      {editCourseId !== null ? "Update Course" : "Save Course"}
+                      {loading ? "Saving..." : editCourseId !== null ? "Update Course" : "Save Course"}
                     </Button>
                   </div>
                 </DialogFooter>

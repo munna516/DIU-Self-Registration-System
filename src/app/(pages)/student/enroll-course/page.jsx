@@ -114,33 +114,43 @@ export default function EnrollCourse() {
   });
 
   // Transform courses data to match the expected format
-  const baseCourses = coursesData
-    ? coursesData.map((course) => ({
-      code: course.courseCode,
-      title: course.courseTitle,
-      credit: course.credit,
-      pre: course.prerequisite || [],
-      isLab: course.courseType === "Lab",
-    }))
-    : [];
+  const baseCourses = useMemo(
+    () =>
+      coursesData
+        ? coursesData.map((course) => ({
+            code: course.courseCode,
+            title: course.courseTitle,
+            credit: course.credit,
+            pre: course.prerequisite || [],
+            isLab: course.courseType === "Lab",
+          }))
+        : [],
+    [coursesData]
+  );
 
   // Add failed prerequisite courses to the courses list (for retake enrollment)
   // These courses might be from previous levels, so we need to include them
-  const failedPrereqCourses = failedPrerequisiteCoursesDetails.map((course) => ({
-    code: course.courseCode,
-    title: course.courseTitle,
-    credit: course.credit,
-    pre: course.prerequisite || [],
-    isLab: course.courseType === "Lab",
-    isRetake: true,
-  }));
+  const failedPrereqCourses = useMemo(
+    () =>
+      failedPrerequisiteCoursesDetails.map((course) => ({
+        code: course.courseCode,
+        title: course.courseTitle,
+        credit: course.credit,
+        pre: course.prerequisite || [],
+        isLab: course.courseType === "Lab",
+        isRetake: true,
+      })),
+    [failedPrerequisiteCoursesDetails]
+  );
 
   // Merge base courses with failed prerequisite courses, avoiding duplicates
-  const allCourseCodes = new Set(baseCourses.map((c) => c.code));
-  const uniqueFailedPrereqs = failedPrereqCourses.filter(
-    (c) => !allCourseCodes.has(c.code)
-  );
-  const courses = [...baseCourses, ...uniqueFailedPrereqs];
+  const courses = useMemo(() => {
+    const allCourseCodes = new Set(baseCourses.map((c) => c.code));
+    const uniqueFailedPrereqs = failedPrereqCourses.filter(
+      (c) => !allCourseCodes.has(c.code)
+    );
+    return [...baseCourses, ...uniqueFailedPrereqs];
+  }, [baseCourses, failedPrereqCourses]);
 
   // Determine section type based on selected course
   // If course is a failed prerequisite (in enabledPrerequisiteCourses), use "retake", otherwise "regular"
@@ -166,9 +176,10 @@ export default function EnrollCourse() {
   });
 
   // Generate sections array based on count from database
-  const sections = sectionData?.count
-    ? generateSections(sectionData.count)
-    : [];
+  const sections = useMemo(
+    () => (sectionData?.count ? generateSections(sectionData.count) : []),
+    [sectionData?.count]
+  );
 
   // Fetch enrolled courses for current semester
   const { data: enrolledCoursesData, isLoading: isLoadingEnrolledCourses, refetch: refetchEnrolledCourses } = useQuery({
@@ -191,51 +202,60 @@ export default function EnrollCourse() {
   // Check if student has enrolled courses (hide enrollment form if they have)
   const hasEnrolledCourses = enrolledCourses.length > 0;
 
-  // Check registration status: "open", "notOpen", or "closed"
-  const getRegistrationStatus = () => {
+  const registrationStatusData = useMemo(() => {
     if (!registrationSchedule || !registrationSchedule.isEnabled) {
-      return "notOpen";
+      return {
+        registrationStatus: "notOpen",
+        registrationStartDateTime: null,
+        registrationEndDateTime: null,
+      };
     }
 
     const now = new Date();
 
-    // Get start date and time
-    const startDate = new Date(registrationSchedule.startDate);
-    const [startHours, startMinutes] = registrationSchedule.startTime
+    const [startHours, startMinutes] = (
+      registrationSchedule.startTime || "00:00"
+    )
       .split(":")
       .map(Number);
-    const registrationStartDateTime = new Date(startDate);
+    const registrationStartDateTime = new Date(
+      new Date(registrationSchedule.startDate)
+    );
     registrationStartDateTime.setHours(startHours, startMinutes, 0, 0);
 
-    // Get end date and time
-    const endDate = new Date(registrationSchedule.endDate);
-    const [endHours, endMinutes] = registrationSchedule.endTime
+    const [endHours, endMinutes] = (
+      registrationSchedule.endTime || "00:00"
+    )
       .split(":")
       .map(Number);
-    const registrationEndDateTime = new Date(endDate);
+    const registrationEndDateTime = new Date(
+      new Date(registrationSchedule.endDate)
+    );
     registrationEndDateTime.setHours(endHours, endMinutes, 0, 0);
 
-    // Check registration status
+    let status = "open";
     if (now < registrationStartDateTime) {
-      return "notOpen"; // Registration hasn't started yet
+      status = "notOpen";
     } else if (now > registrationEndDateTime) {
-      return "closed"; // Registration has ended
-    } else {
-      return "open"; // Registration is currently open
+      status = "closed";
     }
-  };
 
-  // Check if registration is currently open (between start and end date/time)
-  const isRegistrationOpen = () => {
-    return getRegistrationStatus() === "open";
-  };
+    return {
+      registrationStatus: status,
+      registrationStartDateTime,
+      registrationEndDateTime,
+    };
+  }, [registrationSchedule]);
+
+  const registrationStatus = registrationStatusData.registrationStatus;
+  const isRegistrationOpen = registrationStatus === "open";
 
   // Check if evaluation is completed and show toast if needed
   useEffect(() => {
     if (
       !isLoadingSchedule &&
       !isLoadingTeachingEvaluation &&
-      isRegistrationOpen() &&
+      isRegistrationOpen &&
       teachingEvaluation === false
     ) {
       setShowEvaluationToast(true);
@@ -243,61 +263,75 @@ export default function EnrollCourse() {
   }, [
     isLoadingSchedule,
     isLoadingTeachingEvaluation,
-    registrationSchedule,
+    isRegistrationOpen,
     teachingEvaluation,
   ]);
 
   // Disable already enrolled courses and courses already in pending list (for dropdown)
-  const fullyDisabledCodes = [
-    ...new Set([
-      ...enrolledCourses.map((ec) => ec.code),
-      ...pendingCourses.map((pc) => pc.code),
-    ]),
-  ];
+  const fullyDisabledCodes = useMemo(
+    () => [
+      ...new Set([
+        ...enrolledCourses.map((ec) => ec.code),
+        ...pendingCourses.map((pc) => pc.code),
+      ]),
+    ],
+    [enrolledCourses, pendingCourses]
+  );
 
   // Only disable courses that have been checked and found to have failed prerequisites
   // Allow students to SELECT courses with prerequisites first, then check them
-  const coursesWithUnmetPrereqs = courses
-    .filter((course) => {
-      if (course.pre.length === 0) return false;
-      // Disable if any of its prerequisites failed (check against failedPrerequisiteCodes)
-      const hasFailedPrereq = course.pre.some((preCode) =>
-        failedPrerequisiteCodes.includes(preCode)
-      );
-      return hasFailedPrereq; // Only disable if prerequisite failed (after checking)
-    })
-    .map((c) => c.code);
+  const coursesWithUnmetPrereqs = useMemo(
+    () =>
+      courses
+        .filter((course) => {
+          if (course.pre.length === 0) return false;
+          // Disable if any of its prerequisites failed (check against failedPrerequisiteCodes)
+          return course.pre.some((preCode) =>
+            failedPrerequisiteCodes.includes(preCode)
+          );
+        })
+        .map((c) => c.code),
+    [courses, failedPrerequisiteCodes]
+  );
 
-  const allDisabledCodes = [
-    ...new Set([...fullyDisabledCodes, ...coursesWithUnmetPrereqs]),
-  ];
+  const allDisabledCodes = useMemo(
+    () => [...new Set([...fullyDisabledCodes, ...coursesWithUnmetPrereqs])],
+    [fullyDisabledCodes, coursesWithUnmetPrereqs]
+  );
 
   // Calculate available courses (courses that can be enrolled)
   // Exclude courses with prerequisites - students should not add prerequisite courses
   // IMPORTANT: Only exclude enrolled courses, NOT pending courses (pending courses should be counted)
   // BUT include prerequisite courses that failed and need retaking
-  const availableCourses = courses.filter((course) => {
-    const isEnrolled = enrolledCourses.some((ec) => ec.code === course.code);
-    const hasUnmetPrereq = coursesWithUnmetPrereqs.includes(course.code);
-    const isEnabledPrereq = enabledPrerequisiteCourses.includes(course.code);
+  const availableCourses = useMemo(
+    () =>
+      courses.filter((course) => {
+        const isEnrolled = enrolledCourses.some((ec) => ec.code === course.code);
+        const hasUnmetPrereq = coursesWithUnmetPrereqs.includes(course.code);
+        const isEnabledPrereq = enabledPrerequisiteCourses.includes(course.code);
 
-    // Include if:
-    // 1. Not enrolled
-    // 2. Either has no prerequisites OR is a failed prerequisite that needs retaking
-    // 3. Doesn't have unmet prerequisites (unless it's an enabled prerequisite)
-    return (
-      !isEnrolled &&
-      (course.pre.length === 0 || isEnabledPrereq) &&
-      (!hasUnmetPrereq || isEnabledPrereq)
-    );
-  });
+        // Include if:
+        // 1. Not enrolled
+        // 2. Either has no prerequisites OR is a failed prerequisite that needs retaking
+        // 3. Doesn't have unmet prerequisites (unless it's an enabled prerequisite)
+        return (
+          !isEnrolled &&
+          (course.pre.length === 0 || isEnabledPrereq) &&
+          (!hasUnmetPrereq || isEnabledPrereq)
+        );
+      }),
+    [courses, enrolledCourses, coursesWithUnmetPrereqs, enabledPrerequisiteCourses]
+  );
 
   // Check if all available courses are in pending list
-  const allCoursesAdded =
-    availableCourses.length > 0 &&
-    availableCourses.every((course) =>
-      pendingCourses.some((pc) => pc.code === course.code)
-    );
+  const allCoursesAdded = useMemo(
+    () =>
+      availableCourses.length > 0 &&
+      availableCourses.every((course) =>
+        pendingCourses.some((pc) => pc.code === course.code)
+      ),
+    [availableCourses, pendingCourses]
+  );
 
 
   const handleCourseChange = (value) => {
@@ -607,7 +641,7 @@ export default function EnrollCourse() {
     },
     onSuccess: async (data) => {
       // Show success toast
-      toast.success(`Successfully enrolled in ${pendingCourses.length} course(s)!`);
+      toast.success(`Successfully enrolled in ${pendingCourses.length} courses!`);
 
       // Clear pending courses and reset
       setPendingCourses([]);
@@ -725,9 +759,9 @@ export default function EnrollCourse() {
                 </div>
               </div>
             </div>
-          ) : !isRegistrationOpen() ? (
+          ) : !isRegistrationOpen ? (
             <div className="text-center py-8 ">
-              {getRegistrationStatus() === "closed" ? (
+              {registrationStatus === "closed" ? (
                 <div className="text-2xl font-semibold text-red-600 dark:text-red-400">
                   Registration Is Closed
                 </div>
@@ -754,7 +788,7 @@ export default function EnrollCourse() {
           ) : (
             <>
               {/* Show course selection only if not enrolled and registration is open */}
-              {isRegistrationOpen() && (
+              {isRegistrationOpen && (
                 <>
                   {/* 1st row: Department & Level */}
                   <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -1136,14 +1170,14 @@ export default function EnrollCourse() {
                     <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       <div className="text-green-700 dark:text-green-400 font-semibold mb-3">
                         {allCoursesAdded
-                          ? `All ${availableCourses.length} available course(s) added. Ready to enroll!`
+                          ? `All ${availableCourses.length} available courses added. Ready to enroll!`
                           : availableCourses.length > 0
-                            ? `Added ${pendingCourses.length} of ${availableCourses.length} available course(s). Please add all courses (without prerequisites) before enrolling.`
+                            ? `Added ${pendingCourses.length} of ${availableCourses.length} available courses. Please add all courses before enrolling.`
                             : "No courses available to enroll."}
                       </div>
                       <div className="flex justify-end">
                         <Button
-                          variant="diu"
+                          variant="diu" 
                           className="whitespace-nowrap"
                           onClick={handleEnrollAll}
                           disabled={
