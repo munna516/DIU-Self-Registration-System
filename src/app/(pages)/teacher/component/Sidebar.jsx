@@ -8,9 +8,6 @@ import {
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
-  UserCircle,
-  Ticket,
-  LogOut,
   LayoutDashboard,
   Menu,
   User,
