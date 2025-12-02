@@ -47,6 +47,7 @@ export default function EnrollCourse() {
   const [pendingCourses, setPendingCourses] = useState([]);
   const [commonSection, setCommonSection] = useState("");
   const [showEvaluationToast, setShowEvaluationToast] = useState(false);
+  const [showClearanceDialog, setShowClearanceDialog] = useState(false);
   const [prerequisiteCheckStatus, setPrerequisiteCheckStatus] = useState(null); // null, 'checking', 'completed', 'failed', 'notFound'
   const [prerequisiteCheckResult, setPrerequisiteCheckResult] = useState(null);
   const [failedPrerequisiteCourses, setFailedPrerequisiteCourses] = useState([]); // Courses that should be disabled due to failed prerequisites (e.g., Math-II)
@@ -113,17 +114,51 @@ export default function EnrollCourse() {
     enabled: !!session?.user?.studentId,
   });
 
+  const currentSemesterLabel = useMemo(
+    () =>
+      semesterData ? `${semesterData.semester} ${semesterData.year}` : "",
+    [semesterData]
+  );
+
+  // Fetch clearance request for current semester
+  const {
+    data: clearanceForEnroll,
+    isLoading: isLoadingClearance,
+  } = useQuery({
+    queryKey: [
+      "clearance-request-enroll",
+      session?.user?.studentId,
+      currentSemesterLabel,
+    ],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/clearance-request?studentId=${session?.user?.studentId}&semester=${encodeURIComponent(
+          currentSemesterLabel
+        )}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to fetch clearance request");
+      }
+      return json.data;
+    },
+    enabled:
+      !!session?.user?.studentId &&
+      !!currentSemesterLabel &&
+      !isLoadingSemester,
+  });
+
   // Transform courses data to match the expected format
   const baseCourses = useMemo(
     () =>
       coursesData
         ? coursesData.map((course) => ({
-            code: course.courseCode,
-            title: course.courseTitle,
-            credit: course.credit,
-            pre: course.prerequisite || [],
-            isLab: course.courseType === "Lab",
-          }))
+          code: course.courseCode,
+          title: course.courseTitle,
+          credit: course.credit,
+          pre: course.prerequisite || [],
+          isLab: course.courseType === "Lab",
+        }))
         : [],
     [coursesData]
   );
@@ -265,6 +300,28 @@ export default function EnrollCourse() {
     isLoadingTeachingEvaluation,
     isRegistrationOpen,
     teachingEvaluation,
+  ]);
+
+  // Check clearance status for current semester
+  useEffect(() => {
+    if (
+      !isLoadingSemester &&
+      !isLoadingClearance &&
+      isRegistrationOpen
+    ) {
+      const isApproved =
+        clearanceForEnroll && clearanceForEnroll.requestStatus === "approved";
+      if (!isApproved) {
+        setShowClearanceDialog(true);
+      } else {
+        setShowClearanceDialog(false);
+      }
+    }
+  }, [
+    isLoadingSemester,
+    isLoadingClearance,
+    isRegistrationOpen,
+    clearanceForEnroll,
   ]);
 
   // Disable already enrolled courses and courses already in pending list (for dropdown)
@@ -692,6 +749,11 @@ export default function EnrollCourse() {
     router.push("/student/teaching-evaluation");
   };
 
+  const handleClearanceDialogOK = () => {
+    setShowClearanceDialog(false);
+    router.push("/student/clearance");
+  };
+
   return (
     <div className="">
       {/* Evaluation Pending Toast/Dialog */}
@@ -737,6 +799,45 @@ export default function EnrollCourse() {
         </DialogContent>
       </Dialog>
 
+      {/* Clearance Required Dialog */}
+      <Dialog
+        open={showClearanceDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            return;
+          }
+        }}
+      >
+        <DialogContent
+          className="md:max-w-md max-w-sm"
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-red-600 dark:text-red-400">
+              Clearance Required
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              You must submit and get clearance for the current semester before
+              enrolling in courses. Please submit your clearance request.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="diu"
+              onClick={handleClearanceDialogOK}
+              className="w-full"
+            >
+              Go to Clearance Page
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card className="p-6 dark:bg-slate-800">
         <CardHeader className="pb-4">
 
@@ -744,7 +845,12 @@ export default function EnrollCourse() {
 
         </CardHeader>
         <CardContent>
-          {isLoadingSchedule || isLoadingCourses || isLoadingSections || isLoadingEnrolledCourses || isLoadingSemester ? (
+          {isLoadingSchedule ||
+            isLoadingCourses ||
+            isLoadingSections ||
+            isLoadingEnrolledCourses ||
+            isLoadingSemester ||
+            isLoadingClearance ? (
             <div className="text-center py-8">
               <div className="text-lg font-semibold text-blue-600 dark:text-gray-400">
                 Loading...
@@ -1177,7 +1283,7 @@ export default function EnrollCourse() {
                       </div>
                       <div className="flex justify-end">
                         <Button
-                          variant="diu" 
+                          variant="diu"
                           className="whitespace-nowrap"
                           onClick={handleEnrollAll}
                           disabled={
