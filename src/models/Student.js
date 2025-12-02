@@ -74,7 +74,6 @@ const studentSchema = new Schema(
         },
       },
     ],
-
     isVerified: {
       type: Boolean,
       required: true,
