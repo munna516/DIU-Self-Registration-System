@@ -21,6 +21,7 @@ const navMain = [
   { label: "Teaching Evaluation", icon: FaRegClipboard, href: "/student/teaching-evaluation" },
   { label: "Registered Course", icon: BookOpen, href: "/student/resigtered-course" },
   { label: "Enroll Course", icon: BookPlus, href: "/student/enroll-course" },
+  { label: "Clearance", icon: FaRegClipboard, href: "/student/clearance" },
   { label: "Teacher List", icon: List, href: "/student/teacher-list" },
   { label: "Profile", icon: User, href: "/student/profile" },
 ];

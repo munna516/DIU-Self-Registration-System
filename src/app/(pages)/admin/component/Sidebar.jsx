@@ -17,6 +17,7 @@ import {
   PlusCircle,
   Calendar,
   Settings,
+  ClipboardList,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -29,8 +30,10 @@ const navMain = [
   { label: "Create Section", icon: PlusCircle, href: "/admin/create-section" },
   { label: "Registration Schedule", icon: Calendar, href: "/admin/registration-schedule" },
   { label: "Teachers", icon: Users, href: "/admin/teachers" },
+  { label: "Clearance Request", icon: ClipboardList, href: "/admin/clearance-request" },
   { label: "Announcements", icon: Bell, href: "/admin/announcements" },
-  {label:"Settings", icon: Settings, href: "/admin/settings" },
+  { label: "Settings", icon: Settings, href: "/admin/settings" },
+
 ];
 
 export default function Sidebar({
@@ -57,21 +60,19 @@ export default function Sidebar({
           className="w-12 h-12 lg:w-16 lg:h-16 rounded-full border-4 border-green-100 shadow mb-2"
         />
         <div
-          className={`text-sm  mt-2 font-bold uppercase ${
-            mobileSidebar
+          className={`text-sm  mt-2 font-bold uppercase ${mobileSidebar
               ? "text-black dark:text-white"
               : "text-blue-600 dark:text-white"
-          }`}
+            }`}
         >
           {session?.user?.role}
         </div>
         {isSidebarOpen && (
           <div
-            className={`text-sm ${
-              mobileSidebar
+            className={`text-sm ${mobileSidebar
                 ? "text-black dark:text-white"
                 : "text-blue-600 dark:text-white"
-            } font-semibold mt-2`}
+              } font-semibold mt-2`}
           >
             {mobileSidebar ? "" : session?.user?.email}
           </div>
@@ -80,11 +81,10 @@ export default function Sidebar({
       {/* Main Navigation */}
       <div className="px-6 mt-4">
         <div
-          className={`text-xs ${
-            mobileSidebar
+          className={`text-xs ${mobileSidebar
               ? "text-black dark:text-white"
               : "text-black-300 dark:text-white"
-          } font-semibold mb-3`}
+            } font-semibold mb-3`}
         >
           MAIN
         </div>
@@ -93,15 +93,13 @@ export default function Sidebar({
             <Link
               key={item.label}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${
-                isActive(item.href)
+              className={`flex items-center gap-3 px-3 py-2 rounded-md transition ${isActive(item.href)
                   ? "text-blue-500 bg-blue-100 dark:bg-white dark:text-blue-400"
-                  : `${
-                      mobileSidebar
-                        ? "text-black dark:text-white"
-                        : "text-gray-600 dark:text-white"
-                    }`
-              }`}
+                  : `${mobileSidebar
+                    ? "text-black dark:text-white"
+                    : "text-gray-600 dark:text-white"
+                  }`
+                }`}
             >
               <item.icon className="w-5 h-5 lg:w-7 lg:h-7 font-semibold " />
               {(isSidebarOpen || mobileSidebar) && (
