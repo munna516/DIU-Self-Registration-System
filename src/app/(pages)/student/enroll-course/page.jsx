@@ -54,6 +54,8 @@ export default function EnrollCourse() {
   const [enabledPrerequisiteCourses, setEnabledPrerequisiteCourses] = useState([]); // Prerequisite courses that should be enabled (because they failed and need retake, e.g., Math-I)
   const [failedPrerequisiteCodes, setFailedPrerequisiteCodes] = useState([]); // Track which prerequisite codes failed (e.g., ["MAT-101"])
   const [failedPrerequisiteCoursesDetails, setFailedPrerequisiteCoursesDetails] = useState([]); // Full details of failed prerequisite courses to add to dropdown
+  const [clearedPrerequisiteCourses, setClearedPrerequisiteCourses] = useState([]); // Courses whose prerequisites have been checked and cleared
+  const [selectedRetakeSection, setSelectedRetakeSection] = useState(""); // Section for retake (pre-requisite) courses
   const queryClient = useQueryClient();
 
   const { data: registrationSchedule, isLoading: isLoadingSchedule } = useQuery(
@@ -187,33 +189,47 @@ export default function EnrollCourse() {
     return [...baseCourses, ...uniqueFailedPrereqs];
   }, [baseCourses, failedPrereqCourses]);
 
-  // Determine section type based on selected course
-  // If course is a failed prerequisite (in enabledPrerequisiteCourses), use "retake", otherwise "regular"
-  const sectionType = useMemo(() => {
-    if (!selectedCourse) return "regular";
-    // Check if the selected course is a failed prerequisite that needs retaking
-    return enabledPrerequisiteCourses.includes(selectedCourse.code) ? "retake" : "regular";
-  }, [selectedCourse, enabledPrerequisiteCourses]);
-
-  // Fetch sections from API based on section type
-  const { data: sectionData, isLoading: isLoadingSections } = useQuery({
-    queryKey: ["sections", session?.user?.department, session?.user?.studentId, sectionType],
+  // Fetch regular sections (for theory and lab)
+  const { data: regularSectionData, isLoading: isLoadingRegularSections } = useQuery({
+    queryKey: ["sections", session?.user?.department, session?.user?.studentId, "regular"],
     queryFn: async () => {
       const res = await fetch(
-        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}&sectionType=${sectionType}`
+        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}&sectionType=regular`
       );
       const json = await res.json();
       if (!res.ok || !json.success)
-        throw new Error(json.message || "Failed to fetch sections");
+        throw new Error(json.message || "Failed to fetch regular sections");
       return json.data;
     },
     enabled: !!session?.user?.department && !!session?.user?.studentId,
   });
 
-  // Generate sections array based on count from database
-  const sections = useMemo(
-    () => (sectionData?.count ? generateSections(sectionData.count) : []),
-    [sectionData?.count]
+  // Fetch retake sections (for prerequisite/retake courses)
+  const { data: retakeSectionData, isLoading: isLoadingRetakeSections } = useQuery({
+    queryKey: ["sections", session?.user?.department, session?.user?.studentId, "retake"],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student/sections?department=${session?.user?.department}&studentId=${session?.user?.studentId}&sectionType=retake`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed to fetch retake sections");
+      return json.data;
+    },
+    enabled: !!session?.user?.department && !!session?.user?.studentId,
+  });
+
+  // Generate sections arrays based on counts from database
+  const regularSections = useMemo(
+    () =>
+      regularSectionData?.count ? generateSections(regularSectionData.count) : [],
+    [regularSectionData?.count]
+  );
+
+  const retakeSections = useMemo(
+    () =>
+      retakeSectionData?.count ? generateSections(retakeSectionData.count) : [],
+    [retakeSectionData?.count]
   );
 
   // Fetch enrolled courses for current semester
@@ -284,6 +300,28 @@ export default function EnrollCourse() {
 
   const registrationStatus = registrationStatusData.registrationStatus;
   const isRegistrationOpen = registrationStatus === "open";
+
+  // Check if there are any lab courses in the list
+  const hasLabCoursesInList = useMemo(
+    () => courses.some((c) => c.isLab),
+    [courses]
+  );
+
+  // Whether there are pending theory or lab courses (used to lock section choices)
+  const hasPendingTheory = useMemo(
+    () => pendingCourses.some((pc) => !pc.isLab && !pc.isPrereq),
+    [pendingCourses]
+  );
+
+  const hasPendingLab = useMemo(
+    () => pendingCourses.some((pc) => pc.isLab && !pc.isPrereq),
+    [pendingCourses]
+  );
+
+  const hasPendingRetake = useMemo(
+    () => pendingCourses.some((pc) => pc.isPrereq),
+    [pendingCourses]
+  );
 
   // Check if evaluation is completed and show toast if needed
   useEffect(() => {
@@ -401,13 +439,26 @@ export default function EnrollCourse() {
     setPrerequisiteCheckResult(null);
   };
 
-  // Reset section selection when section type changes
+  // Sync theory section and lab subsection - ensure they use the same base section
+  // When lab subsection is selected, automatically set theory section to match
   useEffect(() => {
-    if (selectedCourse) {
-      setSelectedSection("");
-      setSelectedLabSubsection("");
+    if (selectedLabSubsection && hasPendingTheory) {
+      const labBaseSection = selectedLabSubsection.charAt(0);
+      if (!selectedSection || selectedSection !== labBaseSection) {
+        setSelectedSection(labBaseSection);
+      }
     }
-  }, [sectionType, selectedCourse]);
+  }, [selectedLabSubsection, hasPendingTheory, selectedSection]);
+
+  // When theory section changes, clear lab subsection if it doesn't match
+  useEffect(() => {
+    if (selectedSection && selectedLabSubsection && hasPendingLab) {
+      const labBaseSection = selectedLabSubsection.charAt(0);
+      if (labBaseSection !== selectedSection) {
+        setSelectedLabSubsection("");
+      }
+    }
+  }, [selectedSection, hasPendingLab, selectedLabSubsection]);
 
   // Check prerequisite status
   const handleCheckPrerequisite = async () => {
@@ -454,6 +505,13 @@ export default function EnrollCourse() {
           message: "All prerequisites are completed. You can add this course.",
         });
         toast.success("All prerequisites are completed. You can add this course.");
+
+        // Mark this course as having cleared prerequisites
+        if (selectedCourse) {
+          setClearedPrerequisiteCourses((prev) => [
+            ...new Set([...prev, selectedCourse.code]),
+          ]);
+        }
       } else if (anyFailed) {
         setPrerequisiteCheckStatus("failed");
         const failedPrereqs = prerequisiteChecks.filter(
@@ -526,154 +584,46 @@ export default function EnrollCourse() {
     }
   };
 
-  // Add course to pending list
-  const handleAddCourse = () => {
-    if (!selectedCourse) {
-      alert("Please select a course first.");
+  // Add course to pending list (no per-course section here; sections chosen later)
+  const handleAddCourse = (courseArg) => {
+    const course = courseArg || selectedCourse;
+    if (!course) {
+      toast.error("Please select a course first.");
       return;
     }
 
     // Check if course is already in pending list
-    if (pendingCourses.some((pc) => pc.code === selectedCourse.code)) {
-      alert("This course is already in your pending list.");
+    if (pendingCourses.some((pc) => pc.code === course.code)) {
+      toast.error("This course is already in your pending list.");
       return;
     }
 
     // Check if this is a retake course
-    const isRetakeCourse = sectionType === "retake" || enabledPrerequisiteCourses.includes(selectedCourse.code);
+    const isRetakeCourse =
+      enabledPrerequisiteCourses.includes(course.code);
 
-    // Validate section selection
-    if (selectedCourse.isLab) {
-      // For lab courses, need subsection (which includes section, e.g., "A1", "B2")
-      if (!selectedLabSubsection) {
-        alert("Please select a subsection for lab course.");
-        return;
-      }
-
-      // Extract section from subsection (e.g., "A1" -> "A")
-      const subsectionSection = selectedLabSubsection.charAt(0);
-
-      // For retake courses, don't enforce commonSection restriction
-      if (!isRetakeCourse) {
-        // If regular courses are already added, lab must use the same base section
-        if (commonSection && subsectionSection !== commonSection) {
-          alert(
-            `Lab courses must be in subsections of section ${commonSection}. Please select a subsection of section ${commonSection}.`
-          );
-          return;
-        }
-
-        // If this is the first course (lab course), set common section from subsection
-        if (!commonSection && pendingCourses.length === 0) {
-          setCommonSection(subsectionSection);
-        } else if (!commonSection) {
-          // If commonSection is not set but there are pending courses, set it from subsection
-          setCommonSection(subsectionSection);
-        }
-      }
-    } else {
-      // For regular courses, need section
-      if (!selectedSection) {
-        alert("Please select a section for the course.");
-        return;
-      }
-
-      // For retake courses, don't enforce commonSection restriction
-      if (!isRetakeCourse) {
-        // Check if this is the first regular course or if section matches common section
-        const regularCourses = pendingCourses.filter(
-          (pc) => !pc.isLab && !pc.isPrereq && !enabledPrerequisiteCourses.includes(pc.code)
-        );
-
-        // If commonSection is already set (from lab courses or previous regular courses), must match it
-        if (commonSection) {
-          if (selectedSection !== commonSection) {
-            alert(
-              `All courses must be in the same section. Please select section ${commonSection}.`
-            );
-            return;
-          }
-        } else if (regularCourses.length > 0) {
-          // Check if section matches existing regular courses (extract base section for comparison)
-          const firstRegularSection = regularCourses[0].section.charAt(0); // Get first character (A, B, C, D)
-          if (selectedSection !== firstRegularSection) {
-            alert(
-              `All regular courses must be in the same section. Please select section ${firstRegularSection}.`
-            );
-            return;
-          }
-          // Set common section if not already set
-          setCommonSection(selectedSection);
-        } else {
-          // First regular course - set common section
-          setCommonSection(selectedSection);
-        }
-      }
-    }
-
-    // Build section string
-    let finalSection;
-    if (selectedCourse.isLab) {
-      // For lab courses, use the subsection directly (e.g., "A1", "B2")
-      finalSection = selectedLabSubsection;
-    } else {
-      // For regular courses, use the selected section
-      finalSection = selectedSection;
-    }
-
-    // Add to pending courses
     setPendingCourses((prev) => [
       ...prev,
       {
-        code: selectedCourse.code,
-        title: selectedCourse.title,
-        credit: selectedCourse.credit,
-        section: finalSection,
-        isLab: selectedCourse.isLab || false,
+        code: course.code,
+        title: course.title,
+        credit: course.credit,
+        isLab: course.isLab || false,
         isPrereq: isRetakeCourse, // Mark as prerequisite/retake course
       },
     ]);
 
-    // Reset selection
-    setSelectedCourse(null);
-    setSelectedSection("");
-    setSelectedLabSubsection("");
+    if (!courseArg) {
+      setSelectedCourse(null);
+    }
   };
 
   // Remove course from pending list
   const handleRemovePendingCourse = (courseCode) => {
-    const courseToRemove = pendingCourses.find((pc) => pc.code === courseCode);
     const updatedPending = pendingCourses.filter(
       (pc) => pc.code !== courseCode
     );
     setPendingCourses(updatedPending);
-
-    // Check if there are any courses left
-    if (updatedPending.length === 0) {
-      // No courses left, reset common section
-      setCommonSection("");
-    } else {
-      // If removing a regular course, update common section if needed
-      if (courseToRemove && !courseToRemove.isLab && !courseToRemove.isPrereq) {
-        const remainingRegular = updatedPending.filter(
-          (pc) => !pc.isLab && !pc.isPrereq
-        );
-        if (remainingRegular.length > 0) {
-          // Extract base section (first character) for regular courses
-          const baseSection = remainingRegular[0].section.charAt(0);
-          setCommonSection(baseSection);
-        } else {
-          // No regular courses left, but lab courses might still exist
-          // Keep common section as is (lab courses are subsections of it)
-          const remainingLab = updatedPending.filter((pc) => pc.isLab);
-          if (remainingLab.length === 0) {
-            // No courses at all, reset (shouldn't happen due to check above, but just in case)
-            setCommonSection("");
-          }
-          // If lab courses exist, keep commonSection as they are subsections of it
-        }
-      }
-    }
   };
 
   // Mutation for enrolling courses
@@ -721,24 +671,50 @@ export default function EnrollCourse() {
   // Enroll all courses
   const handleEnrollAll = () => {
     if (pendingCourses.length === 0) {
-      alert("No courses to enroll.");
+      toast.error("No courses to enroll.");
       return;
     }
 
-    // Check if all courses have sections
-    const coursesWithoutSection = pendingCourses.filter((pc) => !pc.section);
-    if (coursesWithoutSection.length > 0) {
-      alert("All courses must have sections selected.");
+    // Validate section selections based on selected course types
+    if (hasPendingTheory && !selectedSection) {
+      toast.error("Please select a theory section for your courses.");
       return;
+    }
+    if (hasPendingLab && !selectedLabSubsection) {
+      toast.error("Please select a lab subsection for your lab courses.");
+      return;
+    }
+    if (hasPendingRetake && !selectedRetakeSection) {
+      toast.error("Please select a retake section for your prerequisite courses.");
+      return;
+    }
+
+    // Validate that theory and lab courses use the same base section
+    if (hasPendingTheory && hasPendingLab && selectedSection && selectedLabSubsection) {
+      const labBaseSection = selectedLabSubsection.charAt(0);
+      if (labBaseSection !== selectedSection) {
+        toast.error("Theory and lab courses must be enrolled in the same section.");
+        return;
+      }
     }
 
     // Prepare courses for enrollment
     // Include sectionType info for retake courses
-    const coursesToEnroll = pendingCourses.map((pc) => ({
-      code: pc.code,
-      section: pc.section,
-      isRetake: pc.isPrereq || false, // Mark retake courses
-    }));
+    const coursesToEnroll = pendingCourses.map((pc) => {
+      let sectionValue;
+      if (pc.isPrereq) {
+        sectionValue = selectedRetakeSection;
+      } else if (pc.isLab) {
+        sectionValue = selectedLabSubsection;
+      } else {
+        sectionValue = selectedSection;
+      }
+      return {
+        code: pc.code,
+        section: sectionValue,
+        isRetake: pc.isPrereq || false, // Mark retake courses
+      };
+    });
 
     // Call the mutation
     enrollMutation.mutate(coursesToEnroll);
@@ -847,7 +823,8 @@ export default function EnrollCourse() {
         <CardContent>
           {isLoadingSchedule ||
             isLoadingCourses ||
-            isLoadingSections ||
+            isLoadingRegularSections ||
+            isLoadingRetakeSections ||
             isLoadingEnrolledCourses ||
             isLoadingSemester ||
             isLoadingClearance ? (
@@ -895,413 +872,442 @@ export default function EnrollCourse() {
             <>
               {/* Show course selection only if not enrolled and registration is open */}
               {isRegistrationOpen && (
-                <>
-                  {/* 1st row: Department & Level */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                    <div className="w-full sm:w-1/2">
-                      <Label className="text-sm font-semibold">
-                        Department
-                      </Label>
-                      <Input
-                        value={
-                          session?.user?.department
-                            ? session?.user?.department
-                            : ""
-                        }
-                        readOnly
-                        className="bg-gray-100 dark:bg-gray-700 font-semibold"
-                        label="Department"
-                      />
-                    </div>
-                    <div className="w-full sm:w-1/2">
-                      <Label className="text-sm font-semibold">Level</Label>
-                      <Input
-                        value={
-                          "Level-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("L")[1].split("T")[0] + "  Term-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("T")[1]
-                        }
-                        readOnly
-                        className="bg-gray-100 dark:bg-gray-700 font-semibold w-full"
-                        label="Level"
-                      />
-                    </div>
-                  </div>
-                  {/* 2nd row: Course Dropdown, Section Selection and Add Button */}
-                  <div className="mb-4">
+                /* 1st row: Department & Level */
+                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                  <div className="w-full sm:w-1/2">
                     <Label className="text-sm font-semibold">
-                      Select Your Course
+                      Department
                     </Label>
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <Select
-                          value={
-                            selectedCourse
-                              ? `${selectedCourse.code} - ${selectedCourse.title}`
-                              : ""
-                          }
-                          onValueChange={handleCourseChange}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Course" />
-                          </SelectTrigger>
-                          <SelectContent className="cursor-pointer">
-                            {courses.length > 0 ? (
-                              courses.map((c) => {
-                                const isDisabled = allDisabledCodes.includes(c.code);
-                                const isEnabledPrereq = enabledPrerequisiteCourses.includes(c.code);
-                                const hasFailedPrereq = failedPrerequisiteCourses.includes(c.code);
-                                const hasPrerequisites = c.pre && c.pre.length > 0;
+                    <Input
+                      value={
+                        session?.user?.department
+                          ? session?.user?.department
+                          : ""
+                      }
+                      readOnly
+                      className="bg-gray-100 dark:bg-gray-700 font-semibold"
+                      label="Department"
+                    />
+                  </div>
+                  <div className="w-full sm:w-1/2">
+                    <Label className="text-sm font-semibold">Level</Label>
+                    <Input
+                      value={
+                        "Level-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("L")[1].split("T")[0] + "  Term-" + getStudentTerm(session?.user?.studentId, { semester: semesterData?.semester, year: semesterData?.year }).split("T")[1]
+                      }
+                      readOnly
+                      className="bg-gray-100 dark:bg-gray-700 font-semibold w-full"
+                      label="Level"
+                    />
+                  </div>
+                </div>
+              )}
+              {/* Course checklist */}
+              <div className="mt-2">
+                <Label className="text-sm font-semibold mb-2 block">
+                  Select Your Courses
+                </Label>
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-100 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Select
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Course Code
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Course Title
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Credit
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Type
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Pre-requisite
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                      {courses.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-300"
+                          >
+                            No courses available.
+                          </td>
+                        </tr>
+                      ) : (
+                        courses.map((c) => {
+                          const isDisabled = allDisabledCodes.includes(
+                            c.code
+                          );
+                          const isEnabledPrereq =
+                            enabledPrerequisiteCourses.includes(c.code);
+                          const hasFailedPrereq =
+                            failedPrerequisiteCourses.includes(c.code);
+                          const hasPrerequisites =
+                            c.pre && c.pre.length > 0;
+                          const isRetakeCourse = isEnabledPrereq;
+                          const needsPrereqCheck =
+                            hasPrerequisites &&
+                            !isEnabledPrereq &&
+                            !hasFailedPrereq;
+                          const prereqNotCleared =
+                            needsPrereqCheck &&
+                            !clearedPrerequisiteCourses.includes(c.code);
+                          const isChecked = pendingCourses.some(
+                            (pc) => pc.code === c.code
+                          );
 
+                          return (
+                            <tr key={c.code}>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4"
+                                  checked={isChecked}
+                                  disabled={
+                                    (isDisabled && !isEnabledPrereq) ||
+                                    prereqNotCleared
+                                  }
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      handleAddCourse(c);
+                                    } else {
+                                      handleRemovePendingCourse(c.code);
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {c.code}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {c.title}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {c.credit}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {isRetakeCourse
+                                  ? "Retake"
+                                  : c.isLab
+                                    ? "Lab"
+                                    : "Theory"}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                                {hasPrerequisites ? (
+                                  <div className="flex items-center gap-2">
+                                    <span>
+                                      {c.pre.join(", ")}
+                                      {isEnabledPrereq &&
+                                        " (Retake Required)"}
+                                      {hasFailedPrereq &&
+                                        " (Failed - Disabled)"}
+                                    </span>
+                                    {prerequisiteCheckStatus ===
+                                      "checking" &&
+                                      selectedCourse &&
+                                      selectedCourse.code === c.code ? (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled
+                                      >
+                                        Checking...
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedCourse(c);
+                                          handleCheckPrerequisite();
+                                        }}
+                                      >
+                                        Check
+                                      </Button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  "None"
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Prerequisite Check Result (global for selected course) */}
+                {selectedCourse &&
+                  selectedCourse.pre.length > 0 &&
+                  prerequisiteCheckResult && (
+                    <div
+                      className={`mt-3 p-3 rounded-lg border ${prerequisiteCheckResult.status === "completed"
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : prerequisiteCheckResult.status === "failed"
+                          ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                          : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                        }`}
+                    >
+                      <div
+                        className={`text-sm font-semibold ${prerequisiteCheckResult.status === "completed"
+                          ? "text-green-700 dark:text-green-400"
+                          : prerequisiteCheckResult.status === "failed"
+                            ? "text-red-700 dark:text-red-400"
+                            : "text-yellow-700 dark:text-yellow-400"
+                          }`}
+                      >
+                        {prerequisiteCheckResult.message}
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              {/* Section selection - shown only after courses selected */}
+              {(hasPendingTheory || hasPendingLab || hasPendingRetake) && (
+                <div className="mt-6 flex flex-col sm:flex-row gap-4">
+                  {hasPendingTheory && (
+                    <div className="flex-1">
+                      <Label className="text-sm font-semibold">
+                        Theory Section
+                      </Label>
+                      <Select
+                        value={selectedSection}
+                        onValueChange={(value) => {
+                          setSelectedSection(value);
+                          // If lab subsection is selected and doesn't match, clear it
+                          if (hasPendingLab && selectedLabSubsection) {
+                            const labBaseSection = selectedLabSubsection.charAt(0);
+                            if (labBaseSection !== value) {
+                              setSelectedLabSubsection("");
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Theory Section" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regularSections.length > 0 ? (
+                            regularSections.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-sections" disabled>
+                              No sections available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {hasPendingLab && (
+                    <div className="flex-1">
+                      <Label className="text-sm font-semibold">
+                        Lab Subsection
+                      </Label>
+                      <Select
+                        value={selectedLabSubsection}
+                        onValueChange={(value) => {
+                          setSelectedLabSubsection(value);
+                          // Automatically set theory section to match lab subsection base
+                          const labBaseSection = value.charAt(0);
+                          if (hasPendingTheory && !selectedSection) {
+                            setSelectedSection(labBaseSection);
+                          } else if (hasPendingTheory && selectedSection !== labBaseSection) {
+                            setSelectedSection(labBaseSection);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Lab Subsection" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regularSections.length > 0 ? (
+                            regularSections.flatMap((section) =>
+                              labSubsections.map((sub) => {
+                                const subsectionValue = `${section}${sub}`;
+                                // If theory section is selected, only show subsections from that section
+                                const isDisabled = hasPendingTheory && selectedSection && section !== selectedSection;
                                 return (
                                   <SelectItem
-                                    key={c.code}
-                                    value={`${c.code} - ${c.title}`}
-                                    disabled={isDisabled && !isEnabledPrereq}
-                                    className="cursor-pointer"
+                                    key={subsectionValue}
+                                    value={subsectionValue}
+                                    disabled={isDisabled}
                                   >
-                                    {c.code} - {c.title}
-                                    {isEnabledPrereq && " (Prerequisite - Retake Required)"}
-                                    {hasFailedPrereq && " (Prerequisite Failed - Cannot Enroll)"}
-                                    {hasPrerequisites &&
-                                      !isEnabledPrereq &&
-                                      !hasFailedPrereq &&
-                                      " (Prerequisites Required - Check First)"}
+                                    {subsectionValue} (25)
                                   </SelectItem>
                                 );
                               })
-                            ) : (
-                              <SelectItem value="no-courses" disabled>
-                                No courses available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Prerequisite Check Result */}
-                      {selectedCourse &&
-                        selectedCourse.pre.length > 0 &&
-                        prerequisiteCheckResult && (
-                          <div
-                            className={`p-3 rounded-lg border ${prerequisiteCheckResult.status === "completed"
-                              ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                              : prerequisiteCheckResult.status === "failed"
-                                ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                                : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
-                              }`}
-                          >
-                            <div
-                              className={`text-sm font-semibold ${prerequisiteCheckResult.status === "completed"
-                                ? "text-green-700 dark:text-green-400"
-                                : prerequisiteCheckResult.status === "failed"
-                                  ? "text-red-700 dark:text-red-400"
-                                  : "text-yellow-700 dark:text-yellow-400"
-                                }`}
-                            >
-                              {prerequisiteCheckResult.message}
-                              {prerequisiteCheckResult.status === "failed" &&
-                                prerequisiteCheckResult.failedPrerequisites && (
-                                  <div className="mt-2 text-xs">
-                                    Failed prerequisites:{" "}
-                                    {prerequisiteCheckResult.failedPrerequisites
-                                      .map(
-                                        (f) =>
-                                          `${f.prerequisiteCode} - ${f.prerequisiteTitle}`
-                                      )
-                                      .join(", ")}
-                                  </div>
-                                )}
-                              {prerequisiteCheckResult.status === "notCompleted" &&
-                                prerequisiteCheckResult.notCompletedPrerequisites && (
-                                  <div className="mt-2 text-xs">
-                                    Not completed prerequisites:{" "}
-                                    {prerequisiteCheckResult.notCompletedPrerequisites
-                                      .map(
-                                        (f) =>
-                                          f.prerequisiteCode
-                                            ? `${f.prerequisiteCode} - ${f.prerequisiteTitle || f.prerequisiteCode}`
-                                            : "Unknown prerequisite"
-                                      )
-                                      .join(", ")}
-                                  </div>
-                                )}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Section Selection */}
-                      {selectedCourse && !selectedCourse.isLab && (
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <Label className="text-sm font-semibold">
-                              Select Section{" "}
-                              <span className={`text-xs font-normal ${sectionType === "retake"
-                                ? "text-orange-600 dark:text-orange-400"
-                                : "text-blue-600 dark:text-blue-400"
-                                }`}>
-                                ({sectionType === "retake" ? "Retake" : "Regular"})
-                              </span>
-                              {commonSection && sectionType !== "retake"
-                                ? ` - Must be ${commonSection}`
-                                : sectionType === "retake"
-                                  ? " - Any section available"
-                                  : ""}
-                            </Label>
-                            <Select
-                              value={selectedSection}
-                              onValueChange={(value) => {
-                                setSelectedSection(value);
-                              }}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select Section" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {sections.length > 0 ? (
-                                  sections.map((s) => (
-                                    <SelectItem
-                                      key={s}
-                                      value={s}
-                                      disabled={
-                                        // For retake courses, don't disable any sections
-                                        // For regular courses, disable if commonSection is set and section doesn't match
-                                        sectionType === "retake"
-                                          ? false
-                                          : commonSection && s !== commonSection
-                                      }
-                                      className="cursor-pointer"
-                                    >
-                                      {s}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="no-sections" disabled>
-                                    No sections available
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Lab Subsection Selection */}
-                      {selectedCourse && selectedCourse.isLab && (
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <Label className="text-sm font-semibold">
-                              Select Subsection{" "}
-                              <span className={`text-xs font-normal ${sectionType === "retake"
-                                ? "text-orange-600 dark:text-orange-400"
-                                : "text-blue-600 dark:text-blue-400"
-                                }`}>
-                                ({sectionType === "retake" ? "Retake" : "Regular"})
-                              </span>
-                              {commonSection && sectionType !== "retake"
-                                ? ` - Must be ${commonSection} subsections`
-                                : sectionType === "retake"
-                                  ? " - Any subsection available"
-                                  : ""}
-                            </Label>
-                            <Select
-                              value={selectedLabSubsection}
-                              onValueChange={setSelectedLabSubsection}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select Subsection" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {sections.length > 0 ? (
-                                  sections.flatMap((section) =>
-                                    labSubsections.map((sub) => {
-                                      const subsectionValue = `${section}${sub}`;
-                                      // For retake courses, show all subsections
-                                      // For regular courses, only show subsections of commonSection if set
-                                      const isDisabled = sectionType !== "retake" &&
-                                        commonSection &&
-                                        section !== commonSection;
-
-                                      return (
-                                        <SelectItem
-                                          key={subsectionValue}
-                                          value={subsectionValue}
-                                          disabled={isDisabled}
-                                          className="cursor-pointer"
-                                        >
-                                          {subsectionValue} (25)
-                                        </SelectItem>
-                                      );
-                                    })
-                                  )
-                                ) : (
-                                  <SelectItem value="no-subsections" disabled>
-                                    No subsections available
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add Button Section */}
-                      {selectedCourse && (
-                        <div className="flex items-end gap-2">
-                          {/* Show Check Pre-requisite button if course has prerequisites and not yet checked or completed */}
-                          {selectedCourse &&
-                            selectedCourse.pre.length > 0 &&
-                            prerequisiteCheckStatus !== "completed" &&
-                            prerequisiteCheckStatus !== "checking" && (
-                              <Button
-                                variant="outline"
-                                onClick={handleCheckPrerequisite}
-                                className="whitespace-nowrap"
-                              >
-                                Check Pre-requisite
-                              </Button>
-                            )}
-
-                          {/* Show checking status */}
-                          {prerequisiteCheckStatus === "checking" && (
-                            <Button
-                              variant="outline"
-                              disabled
-                              className="whitespace-nowrap"
-                            >
-                              Checking...
-                            </Button>
+                            )
+                          ) : (
+                            <SelectItem value="no-subsections" disabled>
+                              No subsections available
+                            </SelectItem>
                           )}
-
-                          {/* Show Add button - only if no prerequisites or prerequisites are completed */}
-                          <Button
-                            variant="diu"
-                            onClick={handleAddCourse}
-                            disabled={
-                              !selectedCourse ||
-                              (!selectedCourse.isLab && !selectedSection) ||
-                              (selectedCourse.isLab && !selectedLabSubsection) ||
-                              (selectedCourse.pre.length > 0 &&
-                                prerequisiteCheckStatus !== "completed")
-                            }
-                            className="whitespace-nowrap"
-                          >
-                            Add
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Pending Courses Table */}
-                  {pendingCourses.length > 0 && (
-                    <div className="mb-4">
-                      <div className="text-green-700 dark:text-green-400 font-semibold mb-2">
-                        Pending Courses ({pendingCourses.length}):
-                      </div>
-                      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                          <thead className="bg-gray-100 dark:bg-gray-700">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Course Code
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Course Title
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Credit
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Section
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Type
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Action
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                            {pendingCourses.map((c) => (
-                              <tr key={c.code}>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                  {c.code}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                  {c.title}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                  {c.credit}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 font-semibold">
-                                  {c.section || "Not Selected"}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                  {c.isPrereq ? (
-                                    <span className="text-orange-600 dark:text-orange-400">
-                                      Prerequisite (Retake)
-                                    </span>
-                                  ) : c.isLab ? (
-                                    <span className="text-purple-600 dark:text-purple-400">
-                                      Lab
-                                    </span>
-                                  ) : (
-                                    <span className="text-blue-600 dark:text-blue-400">
-                                      Regular
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleRemovePendingCourse(c.code)
-                                    }
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    Remove
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
-                  {/* Enroll Button - Only enable when all available courses (without prerequisites) are added */}
-                  {pendingCourses.length > 0 && !hasEnrolledCourses && (
-                    <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="text-green-700 dark:text-green-400 font-semibold mb-3">
-                        {allCoursesAdded
-                          ? `All ${availableCourses.length} available courses added. Ready to enroll!`
-                          : availableCourses.length > 0
-                            ? `Added ${pendingCourses.length} of ${availableCourses.length} available courses. Please add all courses before enrolling.`
-                            : "No courses available to enroll."}
-                      </div>
-                      <div className="flex justify-end">
-                        <Button
-                          variant="diu"
-                          className="whitespace-nowrap"
-                          onClick={handleEnrollAll}
-                          disabled={
-                            !allCoursesAdded ||
-                            availableCourses.length === 0 ||
-                            enrollMutation.isPending
-                          }
-                        >
-                          {enrollMutation.isPending
-                            ? "Enrolling..."
-                            : `Enroll All Courses (${pendingCourses.length})`}
-                        </Button>
-                      </div>
+                  {hasPendingRetake && (
+                    <div className="flex-1">
+                      <Label className="text-sm font-semibold">
+                        Retake Section
+                      </Label>
+                      <Select
+                        value={selectedRetakeSection}
+                        onValueChange={setSelectedRetakeSection}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Retake Section" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {retakeSections.length > 0 ? (
+                            retakeSections.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-retake" disabled>
+                              No sections available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
-                </>
+                </div>
               )}
-            </>
+            </>)}
+
+          {/* Pending Courses Table */}
+          {pendingCourses.length > 0 && (
+            <div className="mb-4">
+              <div className="text-green-700 dark:text-green-400 font-semibold mb-2">
+                Pending Courses ({pendingCourses.length}):
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Code
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Course Title
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Credit
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Section
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Type
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                    {pendingCourses.map((c) => (
+                      <tr key={c.code}>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.code}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.title}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.credit}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 font-semibold">
+                          {c.isPrereq
+                            ? selectedRetakeSection || "Not Selected"
+                            : c.isLab
+                              ? selectedLabSubsection || "Not Selected"
+                              : selectedSection || "Not Selected"}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          {c.isPrereq ? (
+                            <span className="text-orange-600 dark:text-orange-400">
+                              Prerequisite (Retake)
+                            </span>
+                          ) : c.isLab ? (
+                            <span className="text-purple-600 dark:text-purple-400">
+                              Lab
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 dark:text-blue-400">
+                              Regular
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleRemovePendingCourse(c.code)
+                            }
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Enroll Button - Only enable when all available courses (without prerequisites) are added */}
+          {pendingCourses.length > 0 && !hasEnrolledCourses && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="text-green-700 dark:text-green-400 font-semibold mb-3">
+                {allCoursesAdded
+                  ? `All ${availableCourses.length} available courses added. Ready to enroll!`
+                  : availableCourses.length > 0
+                    ? `Added ${pendingCourses.length} of ${availableCourses.length} available courses. Please add all courses before enrolling.`
+                    : "No courses available to enroll."}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="diu"
+                  className="whitespace-nowrap"
+                  onClick={handleEnrollAll}
+                  disabled={
+                    !allCoursesAdded ||
+                    availableCourses.length === 0 ||
+                    enrollMutation.isPending ||
+                    (hasPendingTheory && !selectedSection) ||
+                    (hasPendingLab && !selectedLabSubsection) ||
+                    (hasPendingRetake && !selectedRetakeSection)
+                  }
+                >
+                  {enrollMutation.isPending
+                    ? "Enrolling..."
+                    : `Enroll All Courses (${pendingCourses.length})`}
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
