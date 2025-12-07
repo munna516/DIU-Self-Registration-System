@@ -2,11 +2,11 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import NextAuthProvider from "@/provider/NextAuthProvider";
-import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import QueryProvider from "@/components/QueryProvider/page";
+import { auth } from "@/auth";
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
@@ -19,7 +19,7 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  const session = await getServerSession(authOptions);
+  const session = await auth(authOptions);
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} font-sans antialiased`}>
