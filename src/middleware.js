@@ -13,11 +13,11 @@ export default withAuth(
 
     // Define public routes that should be accessible without authentication
     const publicRoutes = [
-      "/", 
-      "/login", 
-      "/register", 
-      "/api/auth", 
-      "/student/login", 
+      "/",
+      "/login",
+      "/register",
+      "/api/auth",
+      "/student/login",
       "/student/registration",
       "/teacher/login",
       "/teacher/registration",
@@ -25,16 +25,16 @@ export default withAuth(
       "/email-sent",
       "/verify-email"
     ];
-    
+
     // If it's a public route (especially the root), allow access immediately
     // Check exact match first, then check if pathname starts with the route
-    const isPublicRoute = pathname === "/" || 
+    const isPublicRoute = pathname === "/" ||
       publicRoutes.some((route) => {
         if (pathname === route) return true;
         if (pathname.startsWith(route + "/")) return true;
         return false;
       });
-    
+
     if (isPublicRoute) {
       return NextResponse.next();
     }
@@ -96,19 +96,19 @@ export default withAuth(
       authorized: ({ token, req }) => {
         // Only require authentication for protected routes
         const pathname = req.nextUrl.pathname;
-        
+
         // Allow all API routes to pass through (they handle their own authentication)
         if (pathname.startsWith("/api/")) {
           return true;
         }
-        
+
         // Public routes that don't require authentication
         const publicRoutes = [
-          "/", 
-          "/login", 
-          "/register", 
-          "/api/auth", 
-          "/student/login", 
+          "/",
+          "/login",
+          "/register",
+          "/api/auth",
+          "/student/login",
           "/student/registration",
           "/teacher/login",
           "/teacher/registration",
@@ -116,24 +116,24 @@ export default withAuth(
           "/email-sent",
           "/verify-email"
         ];
-        
+
         // If it's a public route, allow access
         // Check exact match first, then check if pathname starts with the route
-        const isPublicRoute = pathname === "/" || 
+        const isPublicRoute = pathname === "/" ||
           publicRoutes.some((route) => {
             if (pathname === route) return true;
             if (pathname.startsWith(route + "/")) return true;
             return false;
           });
-        
+
         if (isPublicRoute) {
           return true;
         }
 
         // For protected routes, require a token
-        if (pathname.startsWith("/admin") || 
-            pathname.startsWith("/teacher") || 
-            pathname.startsWith("/student")) {
+        if (pathname.startsWith("/admin") ||
+          pathname.startsWith("/teacher") ||
+          pathname.startsWith("/student")) {
           return !!token;
         }
 
