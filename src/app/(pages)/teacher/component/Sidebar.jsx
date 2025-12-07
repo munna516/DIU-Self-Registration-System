@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
+  BookOpen,
   LayoutDashboard,
   Menu,
   User,
@@ -20,6 +21,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 const navMain = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/teacher/dashboard" },
+  { label: "Enroll Student", icon: BookOpen , href: "/teacher/enroll-student" },
   { label: "Profile", icon: User, href: "/teacher/profile" },
 ];
 
